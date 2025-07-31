@@ -9,9 +9,11 @@ export interface LoginResponse {
 }
 
 export interface SignupRequest {
+    firstName: string;
+    lastName: string;
     email: string;
     password: string;
-    name: string;
+    acceptTerms: boolean;
 }
 
 export interface SignupResponse {

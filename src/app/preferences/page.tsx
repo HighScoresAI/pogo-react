@@ -17,6 +17,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
+import { ApiClient } from '../../lib/api';
 
 interface Preference {
   name: string;
@@ -90,14 +91,12 @@ export default function PreferencesPage() {
   const handleSavePreferences = async () => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const preferencesData = preferences.reduce((acc, pref) => {
-      //   acc[pref.key] = pref.enabled;
-      //   return acc;
-      // }, {} as Record<string, boolean>);
-      // await ApiClient.put('/user/preferences', preferencesData);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const preferencesData = preferences.reduce((acc, pref) => {
+        acc[pref.key] = pref.enabled;
+        return acc;
+      }, {} as Record<string, boolean>);
+      await ApiClient.put('/user/preferences', preferencesData);
+
       setMessage('Preferences saved successfully!');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -124,8 +123,8 @@ export default function PreferencesPage() {
       </Box>
 
       {message && (
-        <Alert 
-          severity={message.includes('successfully') ? 'success' : 'error'} 
+        <Alert
+          severity={message.includes('successfully') ? 'success' : 'error'}
           className="mb-4"
           onClose={() => setMessage('')}
         >
@@ -133,8 +132,10 @@ export default function PreferencesPage() {
         </Alert>
       )}
 
+      {/* @ts-ignore */}
       <Grid container spacing={3}>
         {preferences.map((preference) => (
+          // @ts-ignore
           <Grid item xs={12} md={6} lg={4} key={preference.key}>
             <Card className="h-full">
               <CardHeader

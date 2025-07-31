@@ -1,327 +1,382 @@
-'use client';
-
+"use client";
 import React, { useState } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
+  Typography,
   TextField,
   Button,
-  Typography,
-  Grid,
-  FormControlLabel,
-  Checkbox,
   Link,
   Divider,
-  IconButton,
-  InputAdornment,
-  Alert,
+  Grid,
 } from '@mui/material';
-import { Visibility, VisibilityOff, Google } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
-    confirmPassword: '',
     acceptTerms: false,
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState('Too weak');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const { signup } = useAuth();
-  const router = useRouter();
-
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-
-    // Password strength calculation
-    if (field === 'password') {
-      const password = value as string;
-      if (password.length === 0) {
-        setPasswordStrength('Too weak');
-      } else if (password.length < 8) {
-        setPasswordStrength('Weak');
-      } else if (password.length < 12) {
-        setPasswordStrength('Medium');
-      } else {
-        setPasswordStrength('Strong');
-      }
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    }
-
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    if (!formData.acceptTerms) {
-      newErrors.acceptTerms = 'You must accept the terms and conditions';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
+    setLoading(true);
+    setError('');
+
+    // Basic validation
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      setError('Please fill in all required fields.');
+      setLoading(false);
       return;
     }
 
-    setIsLoading(true);
     try {
-      await signup({
-        email: formData.email,
-        password: formData.password,
-        name: `${formData.firstName} ${formData.lastName}`,
+      const res = await fetch('http://localhost:5000/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+        }),
       });
-    } catch (error) {
-      console.error('Registration error:', error);
-      setErrors({ submit: 'Registration failed. Please try again.' });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Registration failed.');
+        setLoading(false);
+        return;
+      }
+
+      // Registration successful
+      router.push('/login');
+    } catch (err) {
+      setError('Network error. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleGoogleSignup = () => {
-    // TODO: Implement Google OAuth
-    console.log('Google signup clicked');
+  const handleGoogleSignIn = () => {
+    window.location.href = process.env.NEXT_PUBLIC_API_URL
+      ? `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
+      : 'http://localhost:5000/auth/google';
   };
 
   return (
-    <Box className="min-h-screen flex">
-      {/* Left Panel - Benefits Carousel */}
-      <Box className="hidden md:flex flex-col justify-center items-center p-5 bg-primary.main text-white w-1/2">
-        <Typography variant="h3" className="mb-4">
-          HelloPogo
-        </Typography>
-        <Typography variant="h6" className="mb-4">
-          Your all-in-one workspace solution
-        </Typography>
-        
-        {/* Benefits Cards */}
-        <Card className="w-full max-w-md bg-white/10 backdrop-blur-sm">
-          <CardContent className="text-center">
-            <Typography variant="h5" className="mb-3">
-              🚀 Boost Productivity
-            </Typography>
-            <Typography>
-              Teams using HelloPogo report a 37% increase in productivity.
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        width: '100%',
+        display: 'flex',
+        bgcolor: '#f5f5f5',
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'row',
+          bgcolor: '#fff',
+          mx: 2,
+          my: 2,
+          borderRadius: '12px',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Left Panel - Marketing/Illustration */}
+        <Box
+          sx={{
+            flex: 1,
+            background: 'linear-gradient(180deg, #E3F2FD 0%, #E8F5E8 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 4,
+            position: 'relative',
+            borderRadius: '12px 0 0 12px',
+            overflow: 'hidden',
+            height: '100vh',
+          }}
+        >
+          {/* Main Content Container */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: '100%',
+              width: '100%',
+              maxWidth: 500,
+              py: 4,
+            }}
+          >
+            {/* Top Spacer */}
+            <Box sx={{ flex: 1 }} />
 
-      {/* Right Panel - Registration Form */}
-      <Box className="flex flex-col justify-center items-center flex-grow-1 p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardContent className="p-6">
-            <Box className="text-center mb-6">
-              <Typography variant="h4" className="mb-2">
-                HelloPogo
+            {/* Illustration */}
+            <Box
+              component="img"
+              src="/signUpimg1.png"
+              alt="Save Time on Product Documentation"
+              sx={{
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '80%',
+                maxHeight: '40%',
+                objectFit: 'contain',
+                mb: 4,
+              }}
+            />
+
+            {/* Text Content */}
+            <Box sx={{ textAlign: 'center', color: '#1a1a1a', maxWidth: 400, px: 2, mb: 4 }}>
+              <Typography
+                sx={{
+                  color: '#242426',
+                  textAlign: 'center',
+                  fontFamily: 'Inter',
+                  fontSize: '20px',
+                  fontStyle: 'normal',
+                  fontWeight: 600,
+                  lineHeight: 'normal',
+                  mb: 2,
+                }}
+              >
+                Save Time on Product Documentation
               </Typography>
-              <Typography variant="h6" className="mb-1">
-                Create an Account
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Get started with HelloPogo
+              <Typography
+                sx={{
+                  fontSize: '16px',
+                  lineHeight: 1.5,
+                  color: '#4a4a4a',
+                }}
+              >
+                Automate documentation to save hours on writing and updates.
               </Typography>
             </Box>
 
-            {errors.submit && (
-              <Alert severity="error" className="mb-3">
-                {errors.submit}
-              </Alert>
-            )}
+            {/* Bottom Spacer */}
+            <Box sx={{ flex: 1 }} />
 
-            <form onSubmit={handleSubmit}>
-              <Grid container spacing={2} className="mb-3">
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="First Name"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    error={!!errors.firstName}
-                    helperText={errors.firstName}
-                    required
+            {/* Progress Indicators */}
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              {[true, false, false, false, false].map((isActive, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: isActive ? '#1976d2' : '#E0E0E0',
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Right Panel - Sign-up Form */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            p: 3,
+            bgcolor: '#fff',
+            overflow: 'hidden',
+            height: '100vh',
+            borderRadius: '0 12px 12px 0',
+          }}
+        >
+          <Box sx={{ width: '100%', maxWidth: 380, px: 3 }}>
+            {/* Title */}
+            <Typography
+              sx={{
+                color: '#242426',
+                textAlign: 'center',
+                fontFamily: 'Inter',
+                fontSize: '24px',
+                fontStyle: 'normal',
+                fontWeight: 700,
+                lineHeight: 'normal',
+                mb: 3,
+              }}
+            >
+              Sign up to Hello Pogo
+            </Typography>
+
+            {/* Google Sign-in Button */}
+            <Button
+              fullWidth
+              variant="outlined"
+              size="large"
+              onClick={handleGoogleSignIn}
+              startIcon={
+                <Box sx={{ mr: 1 }}>
+                  <img
+                    src="/google-color-icon 1.svg"
+                    alt="Google"
+                    style={{ width: 20, height: 20 }}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Last Name"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    error={!!errors.lastName}
-                    helperText={errors.lastName}
-                    required
-                  />
-                </Grid>
-              </Grid>
+                </Box>
+              }
+              sx={{
+                color: '#000',
+                fontFamily: 'Inter',
+                fontSize: '16px',
+                fontStyle: 'normal',
+                fontWeight: 500,
+                lineHeight: 'normal',
+                borderRadius: 2,
+                py: 2,
+                bgcolor: '#fff',
+                borderColor: '#E0E0E0',
+                textTransform: 'uppercase',
+                '&:hover': {
+                  bgcolor: '#f5f5f5',
+                  borderColor: '#BDBDBD',
+                },
+              }}
+            >
+              Continue with Google
+            </Button>
+
+            {/* Divider */}
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="body2" sx={{ color: '#666', px: 2 }}>
+                Or sign in with
+              </Typography>
+            </Divider>
+
+            {/* Form */}
+            <Box component="form" onSubmit={handleSubmit}>
+              <TextField
+                label="First Name"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                fullWidth
+                placeholder="First Name"
+                size="small"
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  },
+                }}
+              />
 
               <TextField
+                label="Last Name"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
                 fullWidth
-                label="Email Address"
+                placeholder="Last Name"
+                size="small"
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  },
+                }}
+              />
+
+              <TextField
+                label="Email"
+                name="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                error={!!errors.email}
-                helperText={errors.email}
-                className="mb-3"
-                required
-              />
-
-              <TextField
+                onChange={handleChange}
                 fullWidth
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                error={!!errors.password}
-                helperText={errors.password || `Password strength: ${passwordStrength}`}
-                className="mb-3"
-                required
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
+                placeholder="Email"
+                size="small"
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  },
                 }}
               />
-
-              <TextField
-                fullWidth
-                label="Confirm Password"
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={formData.confirmPassword}
-                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                error={!!errors.confirmPassword}
-                helperText={errors.confirmPassword}
-                className="mb-4"
-                required
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        edge="end"
-                      >
-                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.acceptTerms}
-                    onChange={(e) => handleInputChange('acceptTerms', e.target.checked)}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Typography variant="body2">
-                    I agree to the{' '}
-                    <Link href="#" underline="hover">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link href="#" underline="hover">
-                      Privacy Policy
-                    </Link>
-                  </Typography>
-                }
-                className="mb-4"
-              />
-              {errors.acceptTerms && (
-                <Typography variant="caption" color="error" className="block mb-2">
-                  {errors.acceptTerms}
-                </Typography>
-              )}
 
               <Button
                 type="submit"
                 fullWidth
                 variant="contained"
-                size="large"
-                disabled={isLoading}
-                className="mb-3"
+                size="medium"
+                disabled={loading}
+                sx={{
+                  py: 1.5,
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  bgcolor: '#1976d2',
+                  textTransform: 'uppercase',
+                  '&:hover': {
+                    bgcolor: '#1565c0',
+                  },
+                }}
               >
-                {isLoading ? 'Creating Account...' : 'Create Account'}
+                {loading ? 'Creating Account...' : 'Continue'}
               </Button>
+            </Box>
 
-              <Divider className="my-3">
-                <Typography variant="body2" color="textSecondary">
-                  OR
-                </Typography>
-              </Divider>
+            {/* Legal Text */}
+            <Typography
+              variant="body2"
+              sx={{
+                textAlign: 'center',
+                mt: 2,
+                color: '#666',
+                fontSize: '0.75rem',
+              }}
+            >
+              By signing up, you agree to our{' '}
+              <Link href="#" color="primary" underline="hover">
+                Terms
+              </Link>{' '}
+              &{' '}
+              <Link href="#" color="primary" underline="hover">
+                Privacy Policy
+              </Link>
+            </Typography>
 
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<Google />}
-                onClick={handleGoogleSignup}
-                className="mb-3"
-              >
-                Sign up with Google
-              </Button>
-
-              <Box className="text-center">
-                <Typography variant="body2">
-                  Already have an account?{' '}
-                  <Link href="/login" underline="hover">
-                    Sign in
-                  </Link>
-                </Typography>
-              </Box>
-            </form>
-          </CardContent>
-        </Card>
+            {/* Login Link */}
+            <Typography
+              variant="body2"
+              sx={{
+                textAlign: 'center',
+                mt: 2,
+                color: '#666',
+                fontSize: '0.875rem',
+              }}
+            >
+              Already have an account?{' '}
+              <Link href="/login" color="primary" underline="hover">
+                Log in
+              </Link>
+            </Typography>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );

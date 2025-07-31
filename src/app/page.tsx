@@ -9,18 +9,16 @@ export default function Home() {
   const { isLoggedIn } = useAuth();
 
   useEffect(() => {
-    if (isLoggedIn) {
-      router.push('/dashboard');
-    } else {
-      router.push('/login');
-    }
-  }, [isLoggedIn, router]);
+    // Always redirect to landing page first for new users
+    // Auth check will happen on the landing page
+    router.push('/landing');
+  }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold mb-4">Pogo</h1>
-        <p className="text-gray-600">Redirecting...</p>
+        <h1 className="text-2xl font-bold mb-4">HelloPogo</h1>
+        <p className="text-gray-600">Redirecting to landing page...</p>
       </div>
     </div>
   );

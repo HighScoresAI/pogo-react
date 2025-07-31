@@ -12,6 +12,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import { ApiClient } from '../../lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -22,7 +23,7 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       setError('Please enter your email address');
       return;
@@ -37,12 +38,11 @@ export default function ForgotPasswordPage() {
     setError('');
 
     try {
-      // TODO: Implement actual password reset API call
-      // await ApiClient.post('/auth/forgot-password', { email });
-      
+      await ApiClient.post('/auth/forgot-password', { email });
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // await new Promise(resolve => setTimeout(resolve, 1000));
+
       setIsSubmitted(true);
     } catch (error) {
       console.error('Password reset error:', error);
@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
           <Typography variant="h6" className="mb-4">
             Your all-in-one workspace solution
           </Typography>
-          
+
           <Card className="w-full max-w-md bg-white/10 backdrop-blur-sm">
             <CardContent className="text-center">
               <Typography variant="h5" className="mb-3">
@@ -128,7 +128,7 @@ export default function ForgotPasswordPage() {
         <Typography variant="h6" className="mb-4">
           Your all-in-one workspace solution
         </Typography>
-        
+
         <Card className="w-full max-w-md bg-white/10 backdrop-blur-sm">
           <CardContent className="text-center">
             <Typography variant="h5" className="mb-3">
