@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiClient } from '../lib/api';
 import { LoginRequest, LoginResponse, SignupRequest, SignupResponse } from '../types/auth';
 
@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
   const getToken = (): string | null => {
     if (typeof window === 'undefined') return null;
@@ -44,12 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (data: LoginRequest): Promise<void> => {
     try {
       const response: LoginResponse = await ApiClient.post('/auth/login', data);
-      
+
       if (response && response.access_token) {
         localStorage.setItem('access_token', response.access_token);
         setIsLoggedIn(true);
         setUserId(getUserId());
-        router.push('/dashboard');
+        router.push('/welcome');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('access_token');
     setIsLoggedIn(false);
     setUserId(null);
-    router.push('/login');
+    router.push('/landing');
   };
 
   useEffect(() => {
@@ -82,6 +83,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (token) {
       setIsLoggedIn(true);
       setUserId(getUserId());
+    }
+    // Handle Google OAuth JWT token in URL
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const jwt = params.get('token');
+      if (jwt) {
+        localStorage.setItem('access_token', jwt);
+        setIsLoggedIn(true);
+        setUserId(getUserId());
+        // Remove token from URL and redirect to welcome page
+        window.history.replaceState({}, document.title, window.location.pathname);
+        router.push('/welcome');
+      }
     }
   }, []);
 

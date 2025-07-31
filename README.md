@@ -1,8 +1,26 @@
+# Pogo React Application
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Features
+
+- **Authentication System**: Login and registration with mock backend
+- **Dashboard**: Overview of projects, sessions, and artifacts
+- **Project Management**: View and manage projects
+- **Session Management**: Track and manage sessions
+- **Artifact Management**: Organize and view artifacts
+- **User Profile**: Manage user settings and preferences
+- **Responsive Design**: Works on desktop and mobile devices
 
 ## Getting Started
 
-First, run the development server:
+First, install the dependencies:
+
+```bash
+npm install
+```
+
+Then, run the development server:
 
 ```bash
 npm run dev
@@ -16,9 +34,46 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Mock Authentication
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Since this is a frontend-only application, it includes mock authentication:
+
+### Pre-configured Users:
+- **Email**: `demo@example.com` / **Password**: `password123`
+- **Email**: `test@example.com` / **Password**: `test123`
+
+### Register New Users:
+You can also register new users through the signup form. New users will be stored in memory during the session.
+
+## Application Structure
+
+- **Dashboard** (`/dashboard`): Main overview with statistics and recent activity
+- **Projects** (`/projects`): Manage and view projects
+- **Sessions** (`/sessions`): Track recording sessions
+- **Artifacts** (`/artifacts`): View captured artifacts
+- **User Profile** (`/user-profile`): Manage user information
+- **Preferences** (`/preferences`): Configure application settings
+
+## Technology Stack
+
+- **Framework**: Next.js 15 with App Router
+- **UI Library**: Material-UI (MUI) v7
+- **Styling**: Tailwind CSS v4
+- **Language**: TypeScript
+- **Authentication**: Mock JWT tokens
+- **State Management**: React Context API
+
+## Backend Integration
+
+To connect to a real backend API:
+
+1. Set the `NEXT_PUBLIC_API_URL` environment variable
+2. Ensure your backend provides the following endpoints:
+   - `POST /auth/login`
+   - `POST /auth/signup`
+   - `GET /projects`
+   - `GET /sessions`
+   - `GET /artifacts`
 
 ## Learn More
 
