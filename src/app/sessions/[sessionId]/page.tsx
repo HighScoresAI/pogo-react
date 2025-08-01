@@ -377,6 +377,9 @@ export default function SessionDetailPage() {
         console.log('session:', session);
     }, [session]);
 
+    // Remove the automatic checkExistingTranscript useEffect to prevent text view from opening without Describe action
+    // The text view should only open when user explicitly clicks "Describe" button
+
     if (loading) return <div>Loading...</div>;
     if (!session || session.error) return <div>Session not found.</div>;
 

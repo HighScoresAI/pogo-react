@@ -328,13 +328,25 @@ def list_sessions_by_project(projectId: str):
             audio_count = len([a for a in artifact_list if a.get("captureType") == "audio"])
             duration = 0
 
+            # Calculate session status based on artifact processing status
+            calculated_status = "Draft"  # Default status
+            if artifact_list:
+                # Check if all artifacts are processed
+                all_processed = True
+                for artifact in artifact_list:
+                    if artifact.get("status") != "processed":
+                        all_processed = False
+                        break
+                if all_processed:
+                    calculated_status = "Processed"
+
             session_data = {
                 "_id": str(session["_id"]),
                 "name": session.get("name", "Unknown"),
                 "createdAt": session.get("createdAt"),
                 "createdBy": str(session.get("createdBy", "")),
                 "projectId": str(session.get("projectId", "")),
-                "status": session.get("status", "unknown"),
+                "status": calculated_status,  # Use calculated status instead of stored status
                 "artifacts": artifact_list,
                 "imageCount": image_count,
                 "audioCount": audio_count,

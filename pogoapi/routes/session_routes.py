@@ -41,6 +41,22 @@ def get_all_sessions():
     """Gets all sessions for the authenticated user."""
     db = get_mongodb_client()
     sessions = list(db.db.testCollection.find())
+    
+    # Calculate session status dynamically for each session
+    for session in sessions:
+        artifact_list = session.get("artifacts", [])
+        calculated_status = "Draft"  # Default status
+        if artifact_list:
+            # Check if all artifacts are processed
+            all_processed = True
+            for artifact in artifact_list:
+                if artifact.get("status") != "processed":
+                    all_processed = False
+                    break
+            if all_processed:
+                calculated_status = "Processed"
+        session["status"] = calculated_status
+    
     sessions = [convert_objectids(session) for session in sessions]
     return jsonify(sessions)
 

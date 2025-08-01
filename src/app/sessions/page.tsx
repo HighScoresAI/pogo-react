@@ -329,6 +329,10 @@ function SessionsContent() {
     const getStatusColor = (status: string | undefined) => {
         if (!status) return 'default';
         switch (status.toLowerCase()) {
+            case 'processed':
+                return 'success';
+            case 'draft':
+                return 'warning';
             case 'completed':
                 return 'success';
             case 'in progress':
@@ -343,6 +347,10 @@ function SessionsContent() {
     const getStatusIcon = (status: string | undefined) => {
         if (!status) return <PlayArrow />;
         switch (status.toLowerCase()) {
+            case 'processed':
+                return <PlayArrow />;
+            case 'draft':
+                return <Stop />;
             case 'completed':
                 return <PlayArrow />;
             case 'in progress':

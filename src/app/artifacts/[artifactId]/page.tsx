@@ -18,6 +18,7 @@ import type { Artifact } from '../../../types/artifact';
 import Header from '../../../components/layout/Header';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
+import PublishSessionModal from '../../../components/PublishSessionModal';
 
 const lowlight = createLowlight();
 
@@ -53,6 +54,9 @@ export default function ArtifactDetailPage() {
     // Inline editor state
     const [isEditingInline, setIsEditingInline] = useState(false);
     const [inlineEditorContent, setInlineEditorContent] = useState('');
+    // Publish modal state
+    const [showPublishModal, setShowPublishModal] = useState(false);
+    const [publishLoading, setPublishLoading] = useState(false);
 
     // Inline TipTap Editor
     const inlineEditor = useEditor({
@@ -146,36 +150,19 @@ export default function ArtifactDetailPage() {
         }
     }, [session]);
 
+    // Reset to initial state when selected artifact changes
     useEffect(() => {
-        async function fetchProcessedText() {
-            if (selectedArtifact) {
-                const processedText = await getProcessedText(selectedArtifact);
-                if (processedText) {
-                    setTranscript(processedText);
-                    setEditorContent(processedText);
-                    if (inlineEditor) {
-                        inlineEditor.commands.setContent(processedText);
-                    }
-                    setHasProcessedText(true);
-                } else {
-                    setTranscript('');
-                    setEditorContent('');
-                    if (inlineEditor) {
-                        inlineEditor.commands.setContent('');
-                    }
-                    setHasProcessedText(false);
-                }
-            } else {
-                setTranscript('');
-                setEditorContent('');
-                if (inlineEditor) {
-                    inlineEditor.commands.setContent('');
-                }
-                setHasProcessedText(false);
+        if (selectedArtifact) {
+            // Reset to initial state - show empty state until user clicks "Describe"
+            setHasProcessedText(false);
+            setTranscript('');
+            setEditorContent('');
+            setIsEditingInline(false);
+            setIsPolling(false);
+            if (inlineEditor) {
+                inlineEditor.commands.setContent('');
             }
-            setIsEditing(false);
         }
-        fetchProcessedText();
     }, [selectedArtifact, inlineEditor]);
 
     // Poll for processed text when artifact is being processed
@@ -306,6 +293,28 @@ export default function ArtifactDetailPage() {
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = Math.floor(seconds % 60);
         return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+    };
+
+    const handlePublishSession = async (options: { chatbot: boolean; blog: boolean }) => {
+        setPublishLoading(true);
+        try {
+            // Call the API to publish the session
+            await fetch(`http://localhost:5000/sessions/${sessionId}/publish`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    publishToChatbot: options.chatbot,
+                    publishToBlog: options.blog,
+                }),
+            });
+            setShowPublishModal(false);
+            // You could add a success notification here
+        } catch (error) {
+            console.error('Error publishing session:', error);
+            // You could add an error notification here
+        } finally {
+            setPublishLoading(false);
+        }
     };
 
     return (
@@ -603,15 +612,7 @@ export default function ArtifactDetailPage() {
                                             textTransform: 'none',
                                             '&:hover': { bgcolor: '#0095d5' },
                                         }}
-                                        onClick={async () => {
-                                            if (selectedArtifact) {
-                                                setDescribeLoading(true);
-                                                const text = await getProcessedText(selectedArtifact);
-                                                setTranscript(text || 'No processed text available for this artifact.');
-                                                setHasProcessedText(true);
-                                                setDescribeLoading(false);
-                                            }
-                                        }}
+                                        onClick={handleHeaderDescribe}
                                         disabled={describeLoading}
                                     >
                                         {describeLoading ? 'Processing...' : 'Describe'}
@@ -729,7 +730,7 @@ export default function ArtifactDetailPage() {
                                     ) : (
                                         <>
                                             {/* Text box containing only the text */}
-                                            <Box sx={{ px: 3, py: 3, mx: 'auto', minHeight: 120 }}>
+                                            <Box sx={{ px: 3, py: 3, mx: 'auto', minHeight: 80 }}>
                                                 <div dangerouslySetInnerHTML={{ __html: transcript || '<span style=\'color:#888\'>No transcript available.</span>' }} />
                                             </Box>
                                         </>
@@ -757,6 +758,7 @@ export default function ArtifactDetailPage() {
                                 </Button>
                                 <Button
                                     variant="contained"
+                                    onClick={() => setShowPublishModal(true)}
                                     sx={{ bgcolor: '#4CAF50', fontWeight: 600, '&:hover': { bgcolor: '#45a049' } }}
                                 >
                                     Publish
@@ -835,6 +837,14 @@ export default function ArtifactDetailPage() {
                     </Box>
                 </Box>
             </Box>
+
+            {/* Publish Session Modal */}
+            <PublishSessionModal
+                open={showPublishModal}
+                onClose={() => setShowPublishModal(false)}
+                onPublish={handlePublishSession}
+                loading={publishLoading}
+            />
 
         </>
     );
