@@ -9,6 +9,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DocumentEditor from '../../../components/DocumentEditor';
+import PublishSessionModal from '../../../components/PublishSessionModal';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -224,6 +225,9 @@ export default function SessionDetailPage() {
     // Inline editor state
     const [isEditingInline, setIsEditingInline] = useState(false);
     const [inlineEditorContent, setInlineEditorContent] = useState('');
+    // Publish modal state
+    const [showPublishModal, setShowPublishModal] = useState(false);
+    const [publishLoading, setPublishLoading] = useState(false);
 
     // Inline TipTap Editor
     const inlineEditor = useEditor({
@@ -289,7 +293,7 @@ export default function SessionDetailPage() {
             }
         };
         fetchLatestProcessedText();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [showDocumentEditor, editorArtifactId]);
 
     useEffect(() => {
@@ -806,6 +810,24 @@ export default function SessionDetailPage() {
 
     const handleArtifactClick = (artifactId: string) => {
         router.push(`/artifacts/${artifactId}?sessionId=${sessionId}`);
+    };
+
+    const handlePublishSession = async (options: { chatbot: boolean; blog: boolean }) => {
+        setPublishLoading(true);
+        try {
+            // Call the API to publish the session
+            await ApiClient.post(`/sessions/${sessionId}/publish`, {
+                publishToChatbot: options.chatbot,
+                publishToBlog: options.blog,
+            });
+            setShowPublishModal(false);
+            // You could add a success notification here
+        } catch (error) {
+            console.error('Error publishing session:', error);
+            // You could add an error notification here
+        } finally {
+            setPublishLoading(false);
+        }
     };
 
     return (
@@ -1351,6 +1373,7 @@ export default function SessionDetailPage() {
                                                 </Button>
                                                 <Button
                                                     variant="contained"
+                                                    onClick={() => setShowPublishModal(true)}
                                                     sx={{
                                                         bgcolor: '#4CAF50',
                                                         fontWeight: 600,
@@ -1419,6 +1442,14 @@ export default function SessionDetailPage() {
                     </Box>
                 </Box>
             </Box>
+
+            {/* Publish Session Modal */}
+            <PublishSessionModal
+                open={showPublishModal}
+                onClose={() => setShowPublishModal(false)}
+                onPublish={handlePublishSession}
+                loading={publishLoading}
+            />
         </>
     );
 } 

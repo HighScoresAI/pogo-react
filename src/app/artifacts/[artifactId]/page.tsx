@@ -49,6 +49,7 @@ export default function ArtifactDetailPage() {
     });
     const [describeLoading, setDescribeLoading] = useState(false);
     const [hasProcessedText, setHasProcessedText] = useState(false);
+    const [isPolling, setIsPolling] = useState(false);
     // Inline editor state
     const [isEditingInline, setIsEditingInline] = useState(false);
     const [inlineEditorContent, setInlineEditorContent] = useState('');
@@ -146,21 +147,62 @@ export default function ArtifactDetailPage() {
     }, [session]);
 
     useEffect(() => {
-        if (selectedArtifact && selectedArtifact.processedText) {
-            setTranscript(selectedArtifact.processedText);
-            setEditorContent(selectedArtifact.processedText);
-            if (inlineEditor) {
-                inlineEditor.commands.setContent(selectedArtifact.processedText);
+        async function fetchProcessedText() {
+            if (selectedArtifact) {
+                const processedText = await getProcessedText(selectedArtifact);
+                if (processedText) {
+                    setTranscript(processedText);
+                    setEditorContent(processedText);
+                    if (inlineEditor) {
+                        inlineEditor.commands.setContent(processedText);
+                    }
+                    setHasProcessedText(true);
+                } else {
+                    setTranscript('');
+                    setEditorContent('');
+                    if (inlineEditor) {
+                        inlineEditor.commands.setContent('');
+                    }
+                    setHasProcessedText(false);
+                }
+            } else {
+                setTranscript('');
+                setEditorContent('');
+                if (inlineEditor) {
+                    inlineEditor.commands.setContent('');
+                }
+                setHasProcessedText(false);
             }
-        } else {
-            setTranscript('');
-            setEditorContent('');
-            if (inlineEditor) {
-                inlineEditor.commands.setContent('');
-            }
+            setIsEditing(false);
         }
-        setIsEditing(false);
-    }, [selectedArtifact]);
+        fetchProcessedText();
+    }, [selectedArtifact, inlineEditor]);
+
+    // Poll for processed text when artifact is being processed
+    useEffect(() => {
+        let pollInterval: NodeJS.Timeout;
+
+        if (selectedArtifact && !hasProcessedText && isPolling) {
+            pollInterval = setInterval(async () => {
+                const processedText = await getProcessedText(selectedArtifact);
+                if (processedText) {
+                    setTranscript(processedText);
+                    setEditorContent(processedText);
+                    if (inlineEditor) {
+                        inlineEditor.commands.setContent(processedText);
+                    }
+                    setHasProcessedText(true);
+                    setIsPolling(false);
+                }
+            }, 2000); // Check every 2 seconds
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [selectedArtifact, hasProcessedText, isPolling, inlineEditor]);
 
     const handleEdit = () => {
         setInlineEditorContent(transcript);
@@ -187,6 +229,9 @@ export default function ArtifactDetailPage() {
         if (!selectedArtifact) return;
 
         setDescribeLoading(true);
+        setHasProcessedText(false);
+        setIsPolling(true);
+
         try {
             // First, process the artifact
             await fetch(`http://localhost:5000/artifacts/${selectedArtifact._id}/process`, {
@@ -195,13 +240,14 @@ export default function ArtifactDetailPage() {
                 body: JSON.stringify({ priority: 'medium' })
             });
 
-            // Then fetch the processed text
-            const text = await getProcessedText(selectedArtifact);
-            setTranscript(text || 'No processed text available for this artifact.');
-            setHasProcessedText(true);
+            // Set a temporary message while processing
+            setTranscript('Processing artifact... Please wait.');
+
+            // The polling effect will automatically check for processed text
         } catch (error) {
             console.error('Error processing artifact:', error);
             setTranscript('Error processing artifact. Please try again.');
+            setIsPolling(false);
         } finally {
             setDescribeLoading(false);
         }
