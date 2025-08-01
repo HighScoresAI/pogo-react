@@ -39,7 +39,7 @@ services:
         sync: false
 
   # Celery Background Worker
-  - type: worker
+  - type: web
     name: pogo-celery-worker
     env: python
     plan: free
