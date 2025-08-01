@@ -9,7 +9,7 @@ services:
     startCommand: gunicorn main:app
     envVars:
       - key: MONGODB_URI
-        value: mongodb+srv://username:password@cluster.mongodb.net/pogo
+        value: mongodb+srv://roshangehlot500:roshan99999@pogo.ieempom.mongodb.net/?retryWrites=true&w=majority&appName=pogo
       - key: REDIS_URL
         fromService:
           type: redis
@@ -27,9 +27,15 @@ services:
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
       - key: JWT_SECRET_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CREDENTIALS
+        sync: false
+      - key: QDRANT_URL
+        value: https://73af5a51-332f-4b67-b98e-d9a3c73a5729.us-west-2-0.aws.cloud.qdrant.io:6333
+      - key: QDRANT_API_KEY
         sync: false
 
   # Celery Background Worker
@@ -42,7 +48,7 @@ services:
     startCommand: celery -A celery_app worker --loglevel=info --concurrency=2
     envVars:
       - key: MONGODB_URI
-        value: mongodb+srv://username:password@cluster.mongodb.net/pogo
+        value: mongodb+srv://roshangehlot500:roshan99999@pogo.ieempom.mongodb.net/?retryWrites=true&w=majority&appName=pogo
       - key: REDIS_URL
         fromService:
           type: redis
@@ -60,7 +66,13 @@ services:
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false
-      - key: ANTHROPIC_API_KEY
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CREDENTIALS
+        sync: false
+      - key: QDRANT_URL
+        value: https://73af5a51-332f-4b67-b98e-d9a3c73a5729.us-west-2-0.aws.cloud.qdrant.io:6333
+      - key: QDRANT_API_KEY
         sync: false
 
   # Redis Service
