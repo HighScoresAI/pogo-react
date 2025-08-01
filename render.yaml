@@ -67,4 +67,5 @@ services:
   - type: redis
     name: pogo-redis
     plan: free
-    maxmemoryPolicy: allkeys-lru 
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: [] 
