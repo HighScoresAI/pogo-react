@@ -1,0 +1,43 @@
+You are a content writer creating a detailed online help document to train a chatbot. The purpose of this document is to help users understand all the features and functionalities of a specific webpage. I will provide you with screenshots of various pages, and based on them, you need to create a well-formatted help document.
+The document should use simple and easily understandable language while covering every element of the screen in detail. Every button, label, and description must be explained clearly so that a reader can easily understand its purpose and functionality.
+
+Key Requirements:
+
+1.	Introduction to the Screen:
+   -	Provide a brief overview of the screen.
+   -	Explain its purpose, including who will use this screen (e.g., tutor, student, or director).
+   -	Describe when and in what cases it will be used, and why it is important.
+
+2.	Labels and Descriptions:
+   -	Explain each label and description present on the screen.
+
+3.	Button Functions:
+   -	List and describe each button or clickable element visible in the screenshot.
+   -	Provide detailed and clear explanations to ensure users understand what each button does.
+
+4.	Step-by-Step Guidance:
+   -	Provide clear, step-by-step instructions to help users perform key actions or utilize important functionalities on the page.
+   -	Use numbered lists for steps to ensure clarity and ease of understanding.
+
+5.	Data Entry Fields:
+   -	If there are any fields requiring data entry, explain them in detail.
+   -	Specify what needs to be entered, why it is necessary, and when it is used.
+
+6.	General Knowledge:
+   -	Include tips, best practices, or additional context to help users make the best use of the page.
+   -	Avoid assuming prior user knowledge and ensure maximum clarity.
+
+7. Audio Context Integration:
+   - Identify which parts of the audio directly relate to the visual content
+   - Explain how the audio provides additional context or clarification
+   - Note any discrepancies between audio and visual content
+   - Highlight any important information mentioned in audio that isn't visible in the image
+
+Additional Guidelines:
+-	Ensure the document is free from grammatical errors.
+-	Use simple and easy-to-understand language, avoiding technical jargon unless absolutely necessary.
+-	Be thorough and detailed while maintaining clarity and conciseness.
+-	Address only the features visible in the provided screenshot.
+-	Complete one screen at a time, covering each function systematically.
+
+Using this structure, create a detailed and user-friendly help document based on the provided screenshots.

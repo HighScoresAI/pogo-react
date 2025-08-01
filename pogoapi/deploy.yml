@@ -1,0 +1,82 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Navigate to app directory
+            cd /var/app/pogoapi
+            
+            # Pull latest code
+            git pull origin main || git clone https://github.com/HighScoresAI/pogoapi.git /var/app/pogoapi
+            
+            # Create virtual environment if it doesn't exist
+            if [ ! -d "venv" ]; then
+                python3 -m venv venv
+            fi
+            
+            # Activate virtual environment
+            source venv/bin/activate
+            
+            # Upgrade pip
+            pip install --upgrade pip
+            
+            # Install requirements
+            pip install -r requirements.txt
+            
+            # Install gunicorn if not in requirements
+            pip install gunicorn
+            
+            # Ensure .env file exists and has correct permissions
+            if [ ! -f ".env" ]; then
+                echo "Error: .env file is missing"
+                exit 1
+            fi
+            
+            # Set correct permissions for .env file
+            chmod 600 .env
+            
+            # Stop existing processes
+            pkill -f "gunicorn.*pogoapi" || true
+            pkill -f "python.*main.py" || true
+            
+            # Start the application with gunicorn
+            gunicorn --daemon --workers 4 --bind 0.0.0.0:5000 --name pogoapi --timeout 120 wsgi:app
+            
+            # Verify the process is running
+            sleep 2
+            if pgrep -f "gunicorn.*pogoapi" > /dev/null; then
+                echo "Deployment successful - API is running"
+            else
+                echo "Deployment failed - API is not running"
+                exit 1
+            fi
+      
+      - name: Test API endpoint
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Test if the API is responding
+            curl -f http://localhost:5000/ || exit 1
+            echo "API endpoint test passed"

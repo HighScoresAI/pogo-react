@@ -1,0 +1,50 @@
+services:
+  # Main Flask API
+  - type: web
+    name: pogo-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://username:password@cluster.mongodb.net/pogo
+      - key: REDIS_URL
+        value: redis://your-redis-url:6379/0
+      - key: CELERY_BROKER_URL
+        value: redis://your-redis-url:6379/0
+      - key: CELERY_RESULT_BACKEND
+        value: redis://your-redis-url:6379/0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+
+  # Celery Background Worker
+  - type: worker
+    name: pogo-celery-worker
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A celery_app worker --loglevel=info --concurrency=2
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://username:password@cluster.mongodb.net/pogo
+      - key: REDIS_URL
+        value: redis://your-redis-url:6379/0
+      - key: CELERY_BROKER_URL
+        value: redis://your-redis-url:6379/0
+      - key: CELERY_RESULT_BACKEND
+        value: redis://your-redis-url:6379/0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  # Redis Service
+  - type: redis
+    name: pogo-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru 
