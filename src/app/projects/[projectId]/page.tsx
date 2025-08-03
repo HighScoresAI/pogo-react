@@ -1,21 +1,11 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Breadcrumbs, Link, Card, CardContent, Avatar, IconButton, Button, TextField, InputAdornment, Menu, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Stack, Pagination } from '@mui/material';
+import { Box, Typography, Breadcrumbs, Link, Card, Avatar, IconButton, Button, TextField, InputAdornment, Menu, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Stack, Pagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PersonIcon from '@mui/icons-material/Person';
-import GroupAddIcon from '@mui/icons-material/GroupAdd';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import DraftsOutlinedIcon from '@mui/icons-material/DraftsOutlined';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import PublishOutlinedIcon from '@mui/icons-material/PublishOutlined';
 import Header from '../../../components/layout/Header';
-import Grid from '@mui/material/Grid';
-import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import { useParams } from 'next/navigation';
 import { ApiClient } from '../../../lib/api';
 import { useRouter } from 'next/navigation';
@@ -32,22 +22,7 @@ const mockTeam = [
     { name: 'Darlene Robertson', role: 'Contributor', avatar: '', },
 ];
 
-const mockSessions = Array.from({ length: 8 }).map((_, i) => ({
-    name: 'How to create workspace',
-    createdBy: 'Wade Warren',
-    createdAt: '15 Jul 2025, 12:30PM',
-    audio: 1,
-    images: 50,
-    lastUpdatedBy: 'Wade Warren',
-    lastUpdatedAt: '15 Jul 2025, 12:30PM',
-    status: i % 3 === 0 ? 'Draft' : i % 3 === 1 ? 'Processed' : 'Published',
-}));
 
-const statusColor: { [key: string]: 'warning' | 'info' | 'success' } = {
-    Draft: 'warning',
-    Processed: 'info',
-    Published: 'success',
-};
 
 export default function ProjectDetailsStatic() {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -61,10 +36,10 @@ export default function ProjectDetailsStatic() {
         { label: 'Processed Session', value: 0, icon: <img src="/magic-star.svg" alt="Processed Session" style={{ width: 28, height: 28 }} /> },
         { label: 'Published Sessions', value: 0, icon: <img src="/published.svg" alt="Published Sessions" style={{ width: 28, height: 28 }} /> },
     ]);
-    const [projectDetails, setProjectDetails] = useState<any>(null);
+    const [projectDetails, setProjectDetails] = useState<{ name?: string; projectName?: string; description?: string; createdAt?: string; createdBy?: string } | null>(null);
     const [creatorName, setCreatorName] = useState<string>('');
     const [createdAt, setCreatedAt] = useState<string>('');
-    const [sessions, setSessions] = useState<any[]>([]);
+    const [sessions, setSessions] = useState<Array<{ _id: string; name?: string; createdBy?: string; createdAt?: string; status?: string; artifacts?: Array<{ captureType?: string }>; updatedBy?: string; lastUpdatedBy?: string; updatedAt?: string; lastUpdatedAt?: string }>>([]);
     const [userMap, setUserMap] = useState<{ [userId: string]: string }>({});
     const params = useParams();
     const projectId = params?.projectId;
@@ -79,7 +54,7 @@ export default function ProjectDetailsStatic() {
         async function fetchStats() {
             if (!projectId) return;
             try {
-                const stats = await ApiClient.get<any>(`/projects/${projectId}/session-stats`);
+                const stats = await ApiClient.get<{ total?: number; draft?: number; processed?: number; published?: number }>(`/projects/${projectId}/session-stats`);
                 setOverviewStats([
                     { label: 'Sessions', value: stats.total ?? 0, icon: <img src="/Frame (2).svg" alt="Sessions" style={{ width: 28, height: 28 }} /> },
                     { label: 'Draft Sessions', value: stats.draft ?? 0, icon: <img src="/draft session.svg" alt="Draft Sessions" style={{ width: 28, height: 28 }} /> },
@@ -102,11 +77,11 @@ export default function ProjectDetailsStatic() {
         async function fetchProjectDetails() {
             if (!projectId) return;
             try {
-                const project = await ApiClient.get<any>(`/projects/${projectId}`);
+                const project = await ApiClient.get<{ name?: string; projectName?: string; description?: string; createdAt?: string; createdBy?: string }>(`/projects/${projectId}`);
                 setProjectDetails(project);
                 if (project.createdBy) {
                     try {
-                        const user = await ApiClient.get<any>(`/users/${project.createdBy}`);
+                        const user = await ApiClient.get<{ firstName?: string; lastName?: string; email?: string }>(`/users/${project.createdBy}`);
                         setCreatorName(user.firstName || '');
                     } catch {
                         setCreatorName('');
@@ -128,7 +103,7 @@ export default function ProjectDetailsStatic() {
         async function fetchSessions() {
             if (!projectId) return;
             try {
-                const data = await ApiClient.get<any[]>(`/projects/${projectId}/sessions`);
+                const data = await ApiClient.get<Array<{ _id: string; name?: string; createdBy?: string; createdAt?: string; status?: string; artifacts?: Array<{ captureType?: string }>; updatedBy?: string; lastUpdatedBy?: string; updatedAt?: string; lastUpdatedAt?: string }>>(`/projects/${projectId}/sessions`);
                 setSessions(data);
             } catch {
                 setSessions([]);
@@ -143,10 +118,14 @@ export default function ProjectDetailsStatic() {
             const userMapTemp: { [userId: string]: string } = {};
             await Promise.all(userIds.map(async (userId) => {
                 try {
-                    const user = await ApiClient.get<any>(`/users/${userId}`);
-                    userMapTemp[userId] = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email || userId;
+                    const user = await ApiClient.get<{ firstName?: string; lastName?: string; email?: string }>(`/users/${userId}`);
+                    if (userId) {
+                        userMapTemp[userId] = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email || userId;
+                    }
                 } catch {
-                    userMapTemp[userId] = userId;
+                    if (userId) {
+                        userMapTemp[userId] = userId;
+                    }
                 }
             }));
             setUserMap(userMapTemp);
@@ -210,7 +189,7 @@ export default function ProjectDetailsStatic() {
     };
 
     const filteredSessions = sessions.filter(
-        (row: any) => (row.name || '').toLowerCase().includes(search.toLowerCase())
+        (row) => (row.name || '').toLowerCase().includes(search.toLowerCase())
     );
 
     return (
@@ -366,8 +345,8 @@ export default function ProjectDetailsStatic() {
                                     {filteredSessions.slice((page - 1) * sessionsPerPage, page * sessionsPerPage).map((row, idx) => {
                                         const lastUserId = row.updatedBy || row.lastUpdatedBy || row.createdBy;
                                         const lastDate = row.updatedAt || row.lastUpdatedAt || row.createdAt;
-                                        const audioCount = (row.artifacts || []).filter((a: any) => a.captureType === 'audio').length;
-                                        const imageCount = (row.artifacts || []).filter((a: any) => a.captureType === 'image' || a.captureType === 'screenshot').length;
+                                        const audioCount = (row.artifacts || []).filter((a: { captureType?: string }) => a.captureType === 'audio').length;
+                                        const imageCount = (row.artifacts || []).filter((a: { captureType?: string }) => a.captureType === 'image' || a.captureType === 'screenshot').length;
                                         return (
                                             <TableRow
                                                 key={idx + (page - 1) * sessionsPerPage}
@@ -382,7 +361,7 @@ export default function ProjectDetailsStatic() {
                                                     <Typography fontWeight={600}>{row._id}</Typography>
                                                 </TableCell>
                                                 <TableCell sx={{ py: 2.2 }}>
-                                                    <Typography variant="body2" fontWeight={500}>{userMap[row.createdBy] || row.createdBy || '-'}</Typography>
+                                                    <Typography variant="body2" fontWeight={500}>{row.createdBy ? userMap[row.createdBy] || row.createdBy : '-'}</Typography>
                                                     <Typography variant="caption" color="text.secondary">{row.createdAt ? new Date(row.createdAt).toLocaleString() : '-'}</Typography>
                                                 </TableCell>
                                                 <TableCell sx={{ py: 2.2 }}>
@@ -396,7 +375,7 @@ export default function ProjectDetailsStatic() {
                                                     </Stack>
                                                 </TableCell>
                                                 <TableCell sx={{ py: 2.2 }}>
-                                                    <Typography variant="body2" fontWeight={500}>{userMap[lastUserId] || lastUserId || '-'}</Typography>
+                                                    <Typography variant="body2" fontWeight={500}>{lastUserId ? userMap[lastUserId] || lastUserId : '-'}</Typography>
                                                     <Typography variant="caption" color="text.secondary">{lastDate ? new Date(lastDate).toLocaleString() : '-'}</Typography>
                                                 </TableCell>
                                                 <TableCell sx={{ py: 2.2 }}>

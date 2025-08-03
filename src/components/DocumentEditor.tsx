@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Dialog,
@@ -6,7 +5,6 @@ import {
     Typography,
     Button,
     Box,
-    Divider,
     Tooltip,
 } from '@mui/material';
 import {
@@ -30,13 +28,11 @@ import {
     Link as LinkIcon,
     TableChart,
     Code,
-    Fullscreen,
     MoreVert,
     FormatIndentIncrease,
     FormatIndentDecrease,
     HorizontalRule,
     FormatClear,
-    VideoLibrary,
 } from '@mui/icons-material';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';

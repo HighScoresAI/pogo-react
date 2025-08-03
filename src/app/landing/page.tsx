@@ -313,7 +313,7 @@ export default function Home() {
                 lineHeight: '26px'
               }}
             >
-              Your product evolves constantly, but your documentation can't keep up
+              Your product evolves constantly, but your documentation can&apos;t keep up
             </p>
           </div>
 
@@ -568,7 +568,7 @@ export default function Home() {
                       lineHeight: '22px'
                     }}
                   >
-                    Publish your documentation instantly and embed our AI chatbot on your site. Your customers get 24/7 support that's always up-to-date with your latest product changes.
+                    Publish your documentation instantly and embed our AI chatbot on your site. Your customers get 24/7 support that&apos;s always up-to-date with your latest product changes.
                   </p>
                   <a
                     href="#"
@@ -1063,7 +1063,7 @@ export default function Home() {
                 lineHeight: '26px'
               }}
             >
-              Choose the plan that's right for your business needs
+              Choose the plan that&apos;s right for your business needs
             </p>
           </div>
 
@@ -1858,7 +1858,7 @@ export default function Home() {
                   lineHeight: '26px'
                 }}
               >
-                Ready to transform your documentation process? Let's talk.
+                Ready to transform your documentation process? Let&apos;s talk.
               </p>
             </div>
 

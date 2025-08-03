@@ -2,27 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { useApiData } from '../../hooks/useApiData';
 import { Project } from '../../types/project';
-import { Session } from '../../types/session';
-import { Artifact } from '../../types/artifact';
 import {
   Box,
   Container,
   Typography,
   Card,
-  CardContent,
-  CardActions,
   Button,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  CircularProgress,
-  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -31,44 +17,38 @@ import {
 } from '@mui/material';
 
 import {
-  Folder as FolderIcon,
-  VideoCall as VideoCallIcon,
-  Archive as ArchiveIcon,
-  People as PeopleIcon,
-  MoreVert as MoreVertIcon,
-  Visibility as VisibilityIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Close as CloseIcon,
   Add as AddIcon,
-  InsertDriveFileOutlined as InsertDriveFileOutlinedIcon,
-  AudiotrackOutlined as AudiotrackOutlinedIcon,
-  ImageOutlined as ImageOutlinedIcon,
 } from '@mui/icons-material';
 import { ApiClient } from '../../lib/api';
-import ChatbotWidget from '../../components/ChatbotWidget';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import Link from 'next/link';
 
 export default function DashboardPage() {
   // --- Placeholder data ---
   // Place these images in your public/ directory:
   // public/purple-bg.jpg, public/workspace1.jpg, public/workspace2.jpg
-  const [projects, setProjects] = useState<any[]>([]);
-  const [recentWorkspace, setRecentWorkspace] = useState<any | null>(null);
-  const [otherWorkspaces, setOtherWorkspaces] = useState<any[]>([]);
-  const [moreWorkspaces, setMoreWorkspaces] = useState<any[][]>([]); // Array of rows, each row is array of 2 projects
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [recentWorkspace, setRecentWorkspace] = useState<Project | null>(null);
+  const [otherWorkspaces, setOtherWorkspaces] = useState<Project[]>([]);
+  const [moreWorkspaces, setMoreWorkspaces] = useState<Project[][]>([]); // Array of rows, each row is array of 2 projects
   const [stats, setStats] = useState([
     { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
     { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
     { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
   ]);
-  const filesProcessed = [
-    { label: 'Sessions', value: 80 },
-    { label: 'Audio', value: 65 },
-    { label: 'Images', value: 55 },
-  ];
+  const [filesProcessed, setFilesProcessed] = useState([
+    { label: 'Sessions', value: 0 },
+    { label: 'Audio', value: 0 },
+    { label: 'Images', value: 0 },
+  ]);
+
+  // Add state for create project dialog
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  const router = useRouter();
+  const { getUserId } = useAuth();
 
   useEffect(() => {
     ApiClient.get<Project[]>('/projects').then((data) => {
@@ -94,22 +74,39 @@ export default function DashboardPage() {
           { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
           { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
         ]);
+        setFilesProcessed([
+          { label: 'Sessions', value: 0 },
+          { label: 'Audio', value: 0 },
+          { label: 'Images', value: 0 },
+        ]);
         return;
       }
       try {
-        const sessions = await ApiClient.get<any[]>(`/projects/${recentWorkspace.projectId}/sessions`);
+        // Get basic stats
+        const sessions = await ApiClient.get<{ artifacts?: Array<{ captureType: string }> }[]>(`/projects/${recentWorkspace.projectId}/sessions`);
         let audioCount = 0;
         let imageCount = 0;
+
         sessions.forEach(session => {
           if (Array.isArray(session.artifacts)) {
-            audioCount += session.artifacts.filter((a: any) => a.captureType === 'audio').length;
-            imageCount += session.artifacts.filter((a: any) => a.captureType === 'screenshot' || a.captureType === 'image').length;
+            audioCount += session.artifacts.filter((a: { captureType: string }) => a.captureType === 'audio').length;
+            imageCount += session.artifacts.filter((a: { captureType: string }) => a.captureType === 'screenshot' || a.captureType === 'image').length;
           }
         });
+
+        // Get processing statistics from backend
+        const processingStats = await ApiClient.get<{ sessions?: { percentage: number }, audio?: { percentage: number }, images?: { percentage: number } }>(`/projects/${recentWorkspace.projectId}/processing-stats`);
+
         setStats([
           { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: sessions.length },
           { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: audioCount },
           { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: imageCount },
+        ]);
+
+        setFilesProcessed([
+          { label: 'Sessions', value: processingStats.sessions?.percentage || 0 },
+          { label: 'Audio', value: processingStats.audio?.percentage || 0 },
+          { label: 'Images', value: processingStats.images?.percentage || 0 },
         ]);
       } catch {
         setStats([
@@ -117,12 +114,15 @@ export default function DashboardPage() {
           { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
           { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
         ]);
+        setFilesProcessed([
+          { label: 'Sessions', value: 0 },
+          { label: 'Audio', value: 0 },
+          { label: 'Images', value: 0 },
+        ]);
       }
     }
     fetchStats();
   }, [recentWorkspace]);
-
-  const router = useRouter();
 
   return (
     <DashboardLayout>
@@ -148,6 +148,7 @@ export default function DashboardPage() {
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#0095d5' },
               }}
+              onClick={() => setCreateDialogOpen(true)}
             >
               Create new workspace
             </Button>
@@ -163,7 +164,7 @@ export default function DashboardPage() {
                 mb: 3,
                 boxShadow: 3,
                 position: 'relative',
-                background: `url(${recentWorkspace.bg || '/purple-bg.png'}) center/cover no-repeat`,
+                background: `url(${(recentWorkspace as any)?.bg || '/purple-bg.png'}) center/cover no-repeat`,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'flex-end',
@@ -190,7 +191,7 @@ export default function DashboardPage() {
               >
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: 20, mb: 0.5, lineHeight: 1.2 }}>
-                    {`Workspace ${recentWorkspace.projectName || recentWorkspace.name || ''}`}
+                    {`Workspace ${recentWorkspace.projectName || (recentWorkspace as any)?.name || ''}`}
                   </Typography>
                   <Typography sx={{ fontSize: 14, opacity: 0.85, fontWeight: 400 }}>
                     {recentWorkspace.updatedAt ? `Last updated: ${new Date(recentWorkspace.updatedAt).toLocaleDateString()}` : ''}
@@ -220,7 +221,7 @@ export default function DashboardPage() {
           )}
           {/* Stats cards */}
           <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
-            {stats.map((stat, idx) => (
+            {stats.map((stat) => (
               <Box key={stat.label} sx={{ flex: '1 1 300px', minWidth: 0 }}>
                 <Card sx={{ borderRadius: 3, boxShadow: 1, p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Box sx={{ bgcolor: '#CBF0BC', borderRadius: 2, p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -239,7 +240,7 @@ export default function DashboardPage() {
             Files processed
           </Typography>
           <Box sx={{ mb: 4 }}>
-            {filesProcessed.map((item, idx) => (
+            {filesProcessed.map((item) => (
               <Box key={item.label} sx={{ mb: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.label}</Typography>
@@ -266,7 +267,7 @@ export default function DashboardPage() {
                   borderRadius: 4,
                   overflow: 'hidden',
                   boxShadow: 2,
-                  background: `url(${ws.bg || '/workspace.jpg'}) center/cover no-repeat`,
+                  background: `url(${(ws as any)?.bg || '/workspace.jpg'}) center/cover no-repeat`,
                   position: 'relative',
                   display: 'flex',
                   flexDirection: 'column',
@@ -279,8 +280,10 @@ export default function DashboardPage() {
                   // Swap logic
                   setOtherWorkspaces(prev => {
                     const newOthers = [...prev];
-                    newOthers[idx] = recentWorkspace;
-                    return newOthers.map((item, i) => i === idx ? recentWorkspace : item);
+                    if (recentWorkspace) {
+                      newOthers[idx] = recentWorkspace;
+                    }
+                    return newOthers.map((item, i) => i === idx && recentWorkspace ? recentWorkspace : item);
                   });
                   setRecentWorkspace(ws);
                 }}
@@ -305,7 +308,7 @@ export default function DashboardPage() {
                 >
                   <Box>
                     <Typography sx={{ fontWeight: 600, fontSize: 20, mb: 0.5, lineHeight: 1.2 }}>
-                      {`Project ${ws.projectName || ws.name || ''}`}
+                      {`Project ${ws.projectName || (ws as any)?.name || ''}`}
                     </Typography>
                     <Typography sx={{ fontSize: 14, opacity: 0.85, fontWeight: 400 }}>
                       {ws.updatedAt ? `Last updated: ${new Date(ws.updatedAt).toLocaleDateString()}` : ''}
@@ -350,7 +353,7 @@ export default function DashboardPage() {
                     borderRadius: 4,
                     overflow: 'hidden',
                     boxShadow: 2,
-                    background: `url(${ws.bg || '/workspace.jpg'}) center/cover no-repeat`,
+                    background: `url(${(ws as any)?.bg || '/workspace.jpg'}) center/cover no-repeat`,
                     position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
@@ -363,8 +366,10 @@ export default function DashboardPage() {
                     // Swap logic
                     setOtherWorkspaces(prev => {
                       const newOthers = [...prev];
-                      newOthers[0] = recentWorkspace;
-                      return newOthers.map((item, i) => i === 0 ? recentWorkspace : item);
+                      if (recentWorkspace) {
+                        newOthers[0] = recentWorkspace;
+                      }
+                      return newOthers.map((item, i) => i === 0 && recentWorkspace ? recentWorkspace : item);
                     });
                     setRecentWorkspace(ws);
                   }}
@@ -389,7 +394,7 @@ export default function DashboardPage() {
                   >
                     <Box>
                       <Typography sx={{ fontWeight: 600, fontSize: 20, mb: 0.5, lineHeight: 1.2 }}>
-                        {`Project ${ws.projectName || ws.name || ''}`}
+                        {`Project ${ws.projectName || (ws as any)?.name || ''}`}
                       </Typography>
                       <Typography sx={{ fontSize: 14, opacity: 0.85, fontWeight: 400 }}>
                         {ws.updatedAt ? `Last updated: ${new Date(ws.updatedAt).toLocaleDateString()}` : ''}
@@ -424,6 +429,59 @@ export default function DashboardPage() {
           ))}
         </Container>
       </Box>
+
+      {/* Create new workspace dialog */}
+      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)}>
+        <DialogTitle>Create New Workspace</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Workspace Name"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              setCreatingProject(true);
+              try {
+                await ApiClient.post('/projects', { name: newProjectName, createdBy: getUserId() });
+                setCreateDialogOpen(false);
+                setNewProjectName('');
+                // Refresh projects list to include the new one
+                ApiClient.get<Project[]>('/projects').then((data) => {
+                  const sorted = [...(data || [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+                  setProjects(sorted);
+                  setRecentWorkspace(sorted[0] || null);
+                  setOtherWorkspaces(sorted.slice(1, 3));
+                  const more = [];
+                  for (let i = 3; i < sorted.length; i += 2) {
+                    more.push(sorted.slice(i, i + 2));
+                  }
+                  setMoreWorkspaces(more);
+                });
+              } catch (error) {
+                console.error('Error creating project:', error);
+                alert('Failed to create workspace. Please try again.');
+              } finally {
+                setCreatingProject(false);
+              }
+            }}
+            color="primary"
+            disabled={creatingProject || !newProjectName}
+          >
+            {creatingProject ? 'Creating...' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DashboardLayout>
   );
 } 

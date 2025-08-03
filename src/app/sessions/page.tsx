@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -26,27 +25,20 @@ import {
     DialogActions,
     Button,
     TextField,
-    FormControl,
-    InputLabel,
-    Select,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
-    MoreVert,
     Visibility,
     Refresh,
     Upload,
     Delete,
     Edit,
     PersonAdd,
-    CalendarToday,
-    Folder,
     PlayArrow,
     Pause,
     Stop,
 } from '@mui/icons-material';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext';
 import { ApiClient } from '../../lib/api';
 
 interface Session {
@@ -54,7 +46,7 @@ interface Session {
     description: string;
     status: string;
     duration?: string;
-    artifacts: any[];
+    artifacts: Array<{ _id?: string; captureType?: string }>;
     createdAt: string;
     bgClass: string;
     iconClass: string;
@@ -88,92 +80,6 @@ function SessionsContent() {
     const searchParams = useSearchParams();
     const projectId = searchParams.get('project');
 
-    // Mock data for demonstration
-    const mockSessions: Session[] = [
-        {
-            _id: 'session-001',
-            description: 'Initial project planning and requirements gathering',
-            status: 'Completed',
-            duration: '2 hours',
-            artifacts: [
-                {
-                    _id: 'artifact-001',
-                    captureName: 'Screenshot 1',
-                    captureType: 'screenshot',
-                    createdAt: '2024-01-15T10:05:00Z',
-                    bgClass: 'bg-info',
-                    iconClass: 'bi-image',
-                    badgeClass: 'badge-info',
-                    createdBy: 'user-001',
-                    url: 'https://example.com/screenshot1.png'
-                },
-                {
-                    _id: 'artifact-002',
-                    captureName: 'Audio Recording 1',
-                    captureType: 'audio',
-                    createdAt: '2024-01-15T10:10:00Z',
-                    bgClass: 'bg-success',
-                    iconClass: 'bi-mic',
-                    badgeClass: 'badge-success',
-                    createdBy: 'user-001',
-                    url: 'https://example.com/audio1.mp3',
-                    duration: 120
-                }
-            ],
-            createdAt: '2024-01-15T10:00:00Z',
-            bgClass: 'bg-success',
-            iconClass: 'bi-check-circle',
-            badgeClass: 'badge-success',
-        },
-        {
-            _id: 'session-002',
-            description: 'Technical architecture review and discussion',
-            status: 'In Progress',
-            duration: '1.5 hours',
-            artifacts: [
-                {
-                    _id: 'artifact-003',
-                    captureName: 'Screenshot 2',
-                    captureType: 'screenshot',
-                    createdAt: '2024-01-16T14:35:00Z',
-                    bgClass: 'bg-info',
-                    iconClass: 'bi-image',
-                    badgeClass: 'badge-info',
-                    createdBy: 'user-002',
-                    url: 'https://example.com/screenshot2.png'
-                }
-            ],
-            createdAt: '2024-01-16T14:30:00Z',
-            bgClass: 'bg-warning',
-            iconClass: 'bi-clock',
-            badgeClass: 'badge-warning',
-        },
-        {
-            _id: 'session-003',
-            description: 'User interface mockup review and feedback session',
-            status: 'Pending',
-            duration: '1 hour',
-            artifacts: [
-                {
-                    _id: 'artifact-004',
-                    captureName: 'Document 1',
-                    captureType: 'document',
-                    createdAt: '2024-01-17T09:10:00Z',
-                    bgClass: 'bg-primary',
-                    iconClass: 'bi-file-earmark',
-                    badgeClass: 'badge-primary',
-                    createdBy: 'user-003',
-                    url: 'https://example.com/doc1.pdf',
-                    fileSize: 204800
-                }
-            ],
-            createdAt: '2024-01-17T09:00:00Z',
-            bgClass: 'bg-info',
-            iconClass: 'bi-pending',
-            badgeClass: 'badge-info',
-        },
-    ];
-
     const mockProjectUsers: ProjectUser[] = [
         { name: 'John Doe', email: 'john@example.com', role: 'Owner' },
         { name: 'Jane Smith', email: 'jane@example.com', role: 'Editor' },
@@ -205,10 +111,7 @@ function SessionsContent() {
         }
     };
 
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, index: number) => {
-        setAnchorEl(event.currentTarget);
-        setSelectedSessionIndex(index);
-    };
+
 
     const handleMenuClose = () => {
         setAnchorEl(null);

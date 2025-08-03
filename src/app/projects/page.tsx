@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,7 +9,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardActions,
   Button,
   Chip,
   IconButton,
@@ -26,10 +25,6 @@ import {
   DialogActions,
   TextField,
   InputAdornment,
-  Breadcrumbs,
-  Link,
-  Avatar,
-  Tooltip,
   Paper,
   Snackbar,
   Alert as MuiAlert,
@@ -41,24 +36,18 @@ import {
   PersonAdd,
   Delete,
   CalendarToday,
-  Description,
-  Folder,
   Search,
-  FilterList,
   Sort,
   ViewModule,
   ViewList,
   DateRange,
-  ArrowBack,
-  Home,
-  Save,
-  Close,
+  Folder,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { Project } from '../../types/project';
 import { ApiClient } from '../../lib/api';
-import Autocomplete from '@mui/material/Autocomplete';
+
 import Popover from '@mui/material/Popover';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
@@ -67,7 +56,7 @@ import MemberManagementModal from '../../components/MemberManagementModal';
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string>('');
   const [projectStats, setProjectStats] = useState<{ [projectId: string]: { sessions: number; artifacts: number; lastSessionDate: string | null; loading: boolean } }>({});
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProjectIndex, setSelectedProjectIndex] = useState<number | null>(null);
@@ -75,10 +64,8 @@ export default function ProjectsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', description: '' });
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [sortBy, setSortBy] = useState('recent');
-  const [filterOwner, setFilterOwner] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterDate, setFilterDate] = useState<string>('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -117,7 +104,7 @@ export default function ProjectsPage() {
           }
           stats[project.projectId] = { sessions: 0, artifacts: 0, lastSessionDate: null, loading: true };
           try {
-            const sessions = await ApiClient.get<any[]>(`/projects/${project.projectId}/sessions`);
+            const sessions = await ApiClient.get<Array<{ artifacts?: Array<unknown>; createdAt?: string }>>(`/projects/${project.projectId}/sessions`);
             stats[project.projectId].sessions = Array.isArray(sessions) ? sessions.length : 0;
             stats[project.projectId].artifacts = Array.isArray(sessions)
               ? sessions.reduce((sum, s) => sum + (Array.isArray(s.artifacts) ? s.artifacts.length : 0), 0)
@@ -158,9 +145,8 @@ export default function ProjectsPage() {
       await Promise.all(userIds.map(async (userId) => {
         if (!userId) return;
         try {
-          // @ts-ignore
           const user = await ApiClient.get(`/users/${userId}`);
-          userMapTemp[userId] = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email || userId;
+          userMapTemp[userId] = (user as any).firstName ? `${(user as any).firstName} ${(user as any).lastName || ''}`.trim() : (user as any).email || userId;
         } catch {
           userMapTemp[userId] = userId;
         }
@@ -285,19 +271,7 @@ export default function ProjectsPage() {
     }
   };
 
-  const getRoleColor = (role?: string) => {
-    if (!role || typeof role !== 'string') return 'default';
-    switch (role.toLowerCase()) {
-      case 'owner':
-        return 'success';
-      case 'admin':
-        return 'warning';
-      case 'member':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
+
 
   // Filtering, searching, and sorting logic
   const filteredProjects = projects
@@ -314,10 +288,10 @@ export default function ProjectsPage() {
       // Status filter
       if (filterStatus.length > 0) {
         if (
-          filterStatus.includes('unprocessed') && !(project.sessions?.some((s: any) => !s.processed))
+          filterStatus.includes('unprocessed') && !(project.sessions?.some((s: { processed?: boolean }) => !s.processed))
         ) return false;
         if (
-          filterStatus.includes('processed') && !(project.sessions?.every((s: any) => s.processed))
+          filterStatus.includes('processed') && !(project.sessions?.every((s: { processed?: boolean }) => s.processed))
         ) return false;
         if (
           filterStatus.includes('none') && (project.sessions?.length ?? 0) > 0
@@ -356,7 +330,7 @@ export default function ProjectsPage() {
     });
 
   // Handler for sending invites (integrated with backend)
-  const handleSendInvites = async (emails: string[], role: string, message: string) => {
+  const handleSendInvites = async (emails: string[], role: string) => {
     if (projects.length === 0) throw new Error('No project available');
     const projectId = projects[0].projectId; // For demo, use the first project
     const results: { emails: string[], links: string[] } = { emails: [], links: [] };
@@ -373,7 +347,7 @@ export default function ProjectsPage() {
           results.links.push('');
         } else {
           // If user not found, send invite
-          const inviteRes: any = await ApiClient.inviteProjectMember(projectId, email, role);
+          const inviteRes = await ApiClient.inviteProjectMember(projectId, email, role) as unknown as { inviteLink?: string };
           if (typeof email === 'string' && email.trim()) {
             results.emails.push(email);
           } else {
@@ -381,17 +355,17 @@ export default function ProjectsPage() {
           }
           results.links.push(inviteRes.inviteLink || '');
         }
-      } catch (err) {
+      } catch {
         // If user lookup fails, try invite
         try {
-          const inviteRes: any = await ApiClient.inviteProjectMember(projectId, email, role);
+          const inviteRes = await ApiClient.inviteProjectMember(projectId, email, role) as unknown as { inviteLink?: string };
           if (typeof email === 'string' && email.trim()) {
             results.emails.push(email);
           } else {
             results.emails.push('Invalid email');
           }
           results.links.push(inviteRes.inviteLink || '');
-        } catch (inviteErr) {
+        } catch {
           results.emails.push(`Error inviting: ${email}`);
           results.links.push('');
         }
@@ -421,7 +395,7 @@ export default function ProjectsPage() {
       setNewProjectDescription('');
       setNewProjectError('');
       setSnackbar({ open: true, message: 'Project created successfully!', severity: 'success' });
-    } catch (error) {
+    } catch {
       setNewProjectError('Failed to create project');
       setSnackbar({ open: true, message: 'Failed to create project.', severity: 'error' });
     }
@@ -691,7 +665,7 @@ export default function ProjectsPage() {
                   <td style={{ padding: 8 }}>{new Date(project.updatedAt).toLocaleDateString()}</td>
                   <td style={{ padding: 8 }}>{project.sessions?.length ?? 0}</td>
                   <td style={{ padding: 8 }}>{project.artifacts ?? 0}</td>
-                  <td style={{ padding: 8 }}>{userMap[project.createdBy] || project.createdBy}</td>
+                  <td style={{ padding: 8 }}>{project.createdBy ? userMap[project.createdBy as string] || project.createdBy : '-'}</td>
                   <td style={{ padding: 8 }}>
                     <Button size="small" onClick={() => {
                       if (!isValidObjectId(project.projectId)) {

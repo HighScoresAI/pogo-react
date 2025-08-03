@@ -10,17 +10,12 @@ import {
 } from '@mui/icons-material';
 import { ApiClient } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import NotificationsSection from './NotificationsSection';
 import { QRCodeCanvas } from 'qrcode.react';
-import SessionsSection from './SessionsSection';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
-import ApiAccessSection from './ApiAccessSection';
-import ConnectedAccountsSection from './ConnectedAccountsSection';
-import ExtensionManagementSection from './ExtensionManagementSection';
 
 const SETTINGS_SECTIONS = [
     { key: 'profile', label: 'Profile', icon: <SettingsIcon /> },
@@ -211,7 +206,8 @@ export default function UserProfilePage() {
                         )}
                         {section === 'notifications' && (
                             <Box p={4} bgcolor="#fff3e0" borderRadius={2}>
-                                <NotificationsSection />
+                                <Typography variant="h4" color="warning.main" gutterBottom>Notifications</Typography>
+                                <Typography variant="body1">Notification settings will be available soon.</Typography>
                             </Box>
                         )}
                         {section === 'security' && (
@@ -364,7 +360,8 @@ export default function UserProfilePage() {
                                             </Button>
                                         </Box>
                                     )}
-                                    <SessionsSection />
+                                    <Typography variant="h6" sx={{ mb: 2 }}>Sessions</Typography>
+                                    <Typography variant="body2" color="text.secondary">Session management will be available soon.</Typography>
                                     <Typography variant="h6" sx={{ mb: 2 }}>Delete Account</Typography>
                                     {deleteError && <Typography color="error" sx={{ mb: 1 }}>{deleteError}</Typography>}
                                     {deleteSuccess && <Typography color="success.main" sx={{ mb: 1 }}>{deleteSuccess}</Typography>}

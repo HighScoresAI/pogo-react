@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { Box, Typography, Button, Card, List, ListItem, ListItemButton, Chip, IconButton, CircularProgress, InputBase, Slider } from '@mui/material';
-import { Delete, PlayArrow, Pause, VolumeOff, VolumeUp, Search } from '@mui/icons-material';
-import { FormatBold, FormatItalic, FormatUnderlined, StrikethroughS, FormatListBulleted, FormatListNumbered, FormatQuote, FormatAlignLeft, FormatAlignCenter, FormatAlignRight, FormatAlignJustify, Undo, Redo, AddPhotoAlternate, Link as LinkIcon, TableChart, Code, Fullscreen, FullscreenExit, FormatIndentDecrease, FormatIndentIncrease, VideoLibrary, HorizontalRule, FormatClear } from '@mui/icons-material';
+import { Box, Typography, Button, Card, List, ListItem, ListItemButton, IconButton, CircularProgress, Slider, Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText } from '@mui/material';
+import { Delete, PlayArrow, Pause, VolumeOff, VolumeUp } from '@mui/icons-material';
+import { FormatBold, FormatItalic, FormatUnderlined, StrikethroughS, FormatListBulleted, FormatListNumbered, FormatQuote, FormatAlignLeft, FormatAlignCenter, FormatAlignRight, FormatAlignJustify, Undo, Redo, AddPhotoAlternate, Link as LinkIcon, Code, FormatIndentDecrease, FormatIndentIncrease, HorizontalRule } from '@mui/icons-material';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -19,6 +19,8 @@ import Header from '../../../components/layout/Header';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
 import PublishSessionModal from '../../../components/PublishSessionModal';
+import ActivityLogList from '../../../components/ActivityLogList';
+import { ApiClient } from '../../../lib/api';
 
 const lowlight = createLowlight();
 
@@ -37,9 +39,7 @@ export default function ArtifactDetailPage() {
     const [processed, setProcessed] = useState<{ type: 'audio' | 'screenshot', index: number }[]>([]);
 
     const [transcript, setTranscript] = useState('');
-    const [isEditing, setIsEditing] = useState(false);
-    const [editorContent, setEditorContent] = useState('');
-    const [session, setSession] = useState<any>(null);
+    const [session, setSession] = useState<{ projectId?: string; sessionName?: string; sessionId?: string; createdByName?: string; createdAt?: string; artifacts?: Artifact[] } | null>(null);
     const [projectName, setProjectName] = useState('');
     const [audioRef] = useState<React.MutableRefObject<HTMLAudioElement | null>>(React.useRef(null));
     const [audioState, setAudioState] = useState<{ playing: boolean; muted: boolean; currentTime: number; duration: number }>({
@@ -57,6 +57,9 @@ export default function ArtifactDetailPage() {
     // Publish modal state
     const [showPublishModal, setShowPublishModal] = useState(false);
     const [publishLoading, setPublishLoading] = useState(false);
+    // Delete confirmation dialog state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     // Inline TipTap Editor
     const inlineEditor = useEditor({
@@ -94,7 +97,7 @@ export default function ArtifactDetailPage() {
                 setSelectedArtifact(found || null);
                 setLoading(false);
             })
-            .catch(err => {
+            .catch(() => {
                 setError('Failed to fetch session');
                 setLoading(false);
             });
@@ -106,13 +109,13 @@ export default function ArtifactDetailPage() {
             if (!session || !session.artifacts) return;
             const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
             // Check all artifacts
-            await Promise.all(session.artifacts.map(async (artifact: any, idx: number) => {
+            await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
                 if (artifact && artifact._id) {
                     try {
                         const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${artifact._id}`);
                         const data = await response.json();
                         if (data.content && data.content.length > 0) {
-                            processedArr.push({ type: artifact.captureType, index: idx });
+                            processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
                         }
                     } catch { }
                 }
@@ -156,7 +159,6 @@ export default function ArtifactDetailPage() {
             // Reset to initial state - show empty state until user clicks "Describe"
             setHasProcessedText(false);
             setTranscript('');
-            setEditorContent('');
             setIsEditingInline(false);
             setIsPolling(false);
             if (inlineEditor) {
@@ -174,7 +176,6 @@ export default function ArtifactDetailPage() {
                 const processedText = await getProcessedText(selectedArtifact);
                 if (processedText) {
                     setTranscript(processedText);
-                    setEditorContent(processedText);
                     if (inlineEditor) {
                         inlineEditor.commands.setContent(processedText);
                     }
@@ -295,11 +296,18 @@ export default function ArtifactDetailPage() {
         return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     };
 
-    const handlePublishSession = async (options: { chatbot: boolean; blog: boolean }) => {
+    const handlePublishArtifact = async (options: { chatbot: boolean; blog: boolean }) => {
+        if (!selectedArtifact) {
+            console.error('No artifact selected for publishing');
+            return;
+        }
+
         setPublishLoading(true);
         try {
-            // Call the API to publish the session
-            await fetch(`http://localhost:5000/sessions/${sessionId}/publish`, {
+            console.log('Publishing artifact:', selectedArtifact._id);
+
+            // Call the API to publish the specific artifact
+            await fetch(`http://localhost:5000/artifacts/${selectedArtifact._id}/publish`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -307,13 +315,75 @@ export default function ArtifactDetailPage() {
                     publishToBlog: options.blog,
                 }),
             });
+
+            // If publishing to chatbot, also vectorize this specific artifact
+            if (options.chatbot) {
+                console.log('Publishing to chatbot - vectorizing artifact text...');
+                try {
+                    // For individual artifact vectorization, we'll use the session vectorize endpoint
+                    // which will include this artifact's processed text
+                    await fetch(`http://localhost:5000/sessions/${sessionId}/vectorize`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                    console.log('Artifact text vectorized successfully');
+                } catch (vectorizeError) {
+                    console.error('Error vectorizing artifact text:', vectorizeError);
+                    // Don't fail the publish if vectorization fails
+                }
+            }
+
             setShowPublishModal(false);
+            console.log('Artifact published successfully');
             // You could add a success notification here
         } catch (error) {
-            console.error('Error publishing session:', error);
+            console.error('Error publishing artifact:', error);
             // You could add an error notification here
         } finally {
             setPublishLoading(false);
+        }
+    };
+
+    const handleDeleteArtifact = async () => {
+        console.log('Delete button clicked, selectedArtifact:', selectedArtifact);
+        if (!selectedArtifact) {
+            console.log('No selectedArtifact, returning');
+            return;
+        }
+        setDeleteLoading(true);
+        try {
+            console.log('Making delete request for artifact:', selectedArtifact._id);
+            await ApiClient.delete(`/artifacts/${selectedArtifact._id}`);
+            // Update the artifacts list in the session
+            setSession((prev: { projectId?: string; sessionName?: string; sessionId?: string; createdByName?: string; createdAt?: string; artifacts?: Artifact[] } | null) => {
+                if (prev && prev.artifacts) {
+                    const updatedArtifacts = prev.artifacts.filter((a: Artifact) => a._id !== selectedArtifact._id);
+                    return { ...prev, artifacts: updatedArtifacts };
+                }
+                return prev;
+            });
+            setArtifacts((prev: Artifact[]) => prev.filter((a: Artifact) => a._id !== selectedArtifact._id));
+            setSelectedArtifact(null);
+            setTranscript('');
+            setIsEditingInline(false);
+            setHasProcessedText(false);
+            setIsPolling(false);
+            if (inlineEditor) {
+                inlineEditor.commands.setContent('');
+            }
+            setDeleteDialogOpen(false);
+            router.push(`/sessions/${sessionId}`); // Redirect to session details
+        } catch (error) {
+            console.error('Error deleting artifact:', error);
+            if (error instanceof Error) {
+                console.error('Error details:', {
+                    message: error.message,
+                    name: error.name
+                });
+            }
+            alert('Failed to delete artifact. Please try again.');
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -439,9 +509,11 @@ export default function ArtifactDetailPage() {
                                             selectedArtifact._id
                                 ) : 'Artifact'}
                             </Typography>
-                            <IconButton size="small" sx={{ color: '#E53935' }}>
-                                <Delete />
-                            </IconButton>
+                            {selectedArtifact && (
+                                <IconButton size="small" sx={{ color: '#E53935' }} onClick={() => setDeleteDialogOpen(true)}>
+                                    <Delete />
+                                </IconButton>
+                            )}
                         </Box>
                         {/* Artifact Content Card */}
                         <Card sx={{ mb: 4, borderRadius: 3, boxShadow: 1, minHeight: 180, overflow: 'hidden' }}>
@@ -730,8 +802,23 @@ export default function ArtifactDetailPage() {
                                     ) : (
                                         <>
                                             {/* Text box containing only the text */}
-                                            <Box sx={{ px: 3, py: 3, mx: 'auto', minHeight: 80 }}>
-                                                <div dangerouslySetInnerHTML={{ __html: transcript || '<span style=\'color:#888\'>No transcript available.</span>' }} />
+                                            <Box sx={{
+                                                px: 3,
+                                                py: 3,
+                                                mx: 'auto',
+                                                minHeight: 80,
+                                                maxHeight: 220,
+                                                overflowY: 'auto',
+                                                overflowX: 'hidden'
+                                            }}>
+                                                <div
+                                                    dangerouslySetInnerHTML={{ __html: transcript || '<span style=\'color:#888\'>No transcript available.</span>' }}
+                                                    style={{
+                                                        lineHeight: '1.5',
+                                                        fontSize: '15px',
+                                                        color: '#222'
+                                                    }}
+                                                />
                                             </Box>
                                         </>
                                     )}
@@ -761,7 +848,7 @@ export default function ArtifactDetailPage() {
                                     onClick={() => setShowPublishModal(true)}
                                     sx={{ bgcolor: '#4CAF50', fontWeight: 600, '&:hover': { bgcolor: '#45a049' } }}
                                 >
-                                    Publish
+                                    Publish Artifact
                                 </Button>
                                 <Button
                                     variant="contained"
@@ -804,47 +891,47 @@ export default function ArtifactDetailPage() {
                             </Box>
                         )}
                         {/* Log History Section */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 4, mb: 4 }}>
-                            <Typography variant="h6" fontWeight={600}>Log history</Typography>
-                            <Box sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                bgcolor: '#fff',
-                                border: '1px solid #E5E5EA',
-                                borderRadius: 2,
-                                px: 1.5,
-                                py: 0.5,
-                                minWidth: 160,
-                                boxShadow: 'none',
-                            }}>
-                                <Search sx={{ color: '#B0B8C1', fontSize: 22, mr: 1 }} />
-                                <InputBase
-                                    placeholder="Search"
-                                    sx={{ fontSize: 15, color: '#222', width: 110, border: 'none', outline: 'none', background: 'transparent' }}
-                                    inputProps={{ 'aria-label': 'search' }}
-                                />
-                            </Box>
-                        </Box>
-                        <Box sx={{ p: 3, borderRadius: 3, bgcolor: '#fff', boxShadow: 1, position: 'relative', minHeight: 320, mb: 8 }}>
-                            {/* Empty state illustration and message */}
-                            <Box sx={{ mt: 6, mb: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <img src="/Frame 1597882338.png" alt="No activity" style={{ width: 180, height: 120, objectFit: 'contain', marginBottom: 16 }} />
-                                <Typography sx={{ color: '#888', fontSize: 15, textAlign: 'center' }}>
-                                    No activity yet – once actions are taken, they'll show up here!
-                                </Typography>
-                            </Box>
+                        <Box sx={{ mt: 4, mb: 8 }}>
+                            <ActivityLogList
+                                type="artifact"
+                                id={selectedArtifact?._id || ''}
+                                title="Log history"
+                            />
                         </Box>
                     </Box>
                 </Box>
             </Box>
 
-            {/* Publish Session Modal */}
+            {/* Publish Artifact Modal */}
             <PublishSessionModal
                 open={showPublishModal}
                 onClose={() => setShowPublishModal(false)}
-                onPublish={handlePublishSession}
+                onPublish={handlePublishArtifact}
                 loading={publishLoading}
             />
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                aria-labelledby="delete-dialog-title"
+                aria-describedby="delete-dialog-description"
+            >
+                <DialogTitle id="delete-dialog-title">Confirm Deletion</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="delete-dialog-description">
+                        Are you sure you want to delete this artifact? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleDeleteArtifact} color="error" variant="contained" disabled={deleteLoading}>
+                        {deleteLoading ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
         </>
     );

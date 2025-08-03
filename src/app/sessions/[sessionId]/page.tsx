@@ -1,15 +1,15 @@
-// @ts-nocheck
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Box, Typography, Alert, Button, Chip, Card, CardContent, Divider } from '@mui/material';
+import { Box, Typography, Button, Card } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import { CalendarToday, Folder, FormatBold, FormatItalic, FormatUnderlined, StrikethroughS, FormatListBulleted, FormatListNumbered, FormatQuote, FormatAlignLeft, FormatAlignCenter, FormatAlignRight, FormatAlignJustify, Undo, Redo, AddPhotoAlternate, Link as LinkIcon, TableChart, Code, Fullscreen, FullscreenExit, FormatIndentDecrease, FormatIndentIncrease, VideoLibrary, HorizontalRule, FormatClear } from '@mui/icons-material';
+import { CalendarToday, Folder, FormatBold, FormatItalic, FormatUnderlined, StrikethroughS, FormatListBulleted, FormatListNumbered, FormatQuote, FormatAlignLeft, FormatAlignCenter, FormatAlignRight, FormatAlignJustify, Undo, Redo, AddPhotoAlternate, Link as LinkIcon, Code, FormatIndentDecrease, FormatIndentIncrease, HorizontalRule, FormatClear } from '@mui/icons-material';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DocumentEditor from '../../../components/DocumentEditor';
 import PublishSessionModal from '../../../components/PublishSessionModal';
+import ActivityLogList from '../../../components/ActivityLogList';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -23,21 +23,13 @@ import { createLowlight } from 'lowlight';
 import { ApiClient } from '@/lib/api';
 import type { Artifact } from '../../../types/artifact';
 import IconButton from '@mui/material/IconButton';
-import DeleteIcon from '@mui/icons-material/Delete';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContentText from '@mui/material/DialogContentText';
 import { testValue } from '@/lib/test';
-import ReplayIcon from '@mui/icons-material/Replay';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CircularProgress from '@mui/material/CircularProgress';
 import Header from '../../../components/layout/Header';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
-import { Table, TableBody, TableCell, TableHead, TableRow, Pagination } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
-import Slider from '@mui/material/Slider';
 import PauseIcon from '@mui/icons-material/Pause';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 
@@ -108,33 +100,7 @@ const editorStyles = `
   }
 `;
 
-// Dummy data for demonstration; replace with API call as needed
-const mockSessions = [
-    {
-        _id: 'session-001',
-        description: 'Initial project planning and requirements gathering',
-        status: 'Completed',
-        duration: '2 hours',
-        artifacts: [{}, {}],
-        createdAt: '2024-01-15T10:00:00Z',
-    },
-    {
-        _id: 'session-002',
-        description: 'Technical architecture review and discussion',
-        status: 'In Progress',
-        duration: '1.5 hours',
-        artifacts: [{}],
-        createdAt: '2024-01-16T14:30:00Z',
-    },
-    {
-        _id: 'session-003',
-        description: 'User interface mockup review and feedback session',
-        status: 'Pending',
-        duration: '1 hour',
-        artifacts: [{}],
-        createdAt: '2024-01-17T09:00:00Z',
-    },
-];
+
 
 function getStatusColor(status: string) {
     switch (status.toLowerCase()) {
@@ -180,7 +146,7 @@ export default function SessionDetailPage() {
     const params = useParams();
     const router = useRouter();
     const { sessionId } = params;
-    const [session, setSession] = useState<any>(null);
+    const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
     const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
@@ -1347,7 +1313,11 @@ export default function SessionDetailPage() {
                                                         fontSize: 15,
                                                         background: 'transparent',
                                                         color: '#222',
-                                                        fontFamily: 'inherit'
+                                                        fontFamily: 'inherit',
+                                                        overflowY: 'auto',
+                                                        overflowX: 'hidden',
+                                                        lineHeight: '1.5',
+                                                        padding: '0'
                                                     }}
                                                 />
                                             </Box>
@@ -1402,45 +1372,13 @@ export default function SessionDetailPage() {
                                 </Box>
                             )}
                         </Box>
-                        {/* Log History Table Section */}
-                        <Typography variant="h5" fontWeight={600} sx={{ mb: 2, textAlign: 'left', pl: 2 }}>Log history</Typography>
-                        <Box sx={{
-                            border: '1px solid #E5E5EA',
-                            borderRadius: '16px',
-                            background: '#fff',
-                            px: 0,
-                            py: 4,
-                            maxWidth: 1100,
-                            mx: 'auto',
-                            mb: 8,
-                            minHeight: 320,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            position: 'relative',
-                        }}>
-                            {/* Search input at top right */}
-                            <Box sx={{ position: 'absolute', top: 18, right: 32 }}>
-                                <input
-                                    type="text"
-                                    placeholder="Search"
-                                    style={{
-                                        border: '1px solid #E5E5EA',
-                                        borderRadius: 8,
-                                        padding: '6px 12px',
-                                        fontSize: 14,
-                                        outline: 'none',
-                                        width: 120,
-                                    }}
-                                />
-                            </Box>
-                            {/* Empty state illustration and message */}
-                            <Box sx={{ mt: 6, mb: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <img src="/Frame 1597882338.png" alt="No activity" style={{ width: 180, height: 120, objectFit: 'contain', marginBottom: 16 }} />
-                                <Typography sx={{ color: '#888', fontSize: 15, textAlign: 'center' }}>
-                                    No activity yet – once actions are taken, they'll show up here!
-                                </Typography>
-                            </Box>
+                        {/* Log History Section */}
+                        <Box sx={{ mb: 8 }}>
+                            <ActivityLogList
+                                type="session"
+                                id={sessionId || ''}
+                                title="Log history"
+                            />
                         </Box>
                     </Box>
                 </Box>

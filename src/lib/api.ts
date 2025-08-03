@@ -207,4 +207,32 @@ export class ApiClient {
   static async updateDocumentationStatus(documentationId: string, status: string) {
     return this.put(`/api/documentation/${documentationId}/status`, { status });
   }
+
+  // Activity log methods
+  static async getSessionLogs(sessionId: string, limit: number = 50) {
+    return this.get(`/api/activity-logs/session/${sessionId}?limit=${limit}`);
+  }
+
+  static async getArtifactLogs(artifactId: string, limit: number = 50) {
+    return this.get(`/api/activity-logs/artifact/${artifactId}?limit=${limit}`);
+  }
+
+  static async getProjectLogs(projectId: string, limit: number = 50) {
+    return this.get(`/api/activity-logs/project/${projectId}?limit=${limit}`);
+  }
+
+  static async getUserLogs(userId: string, limit: number = 50) {
+    return this.get(`/api/activity-logs/user/${userId}?limit=${limit}`);
+  }
+
+  static async logActivity(data: {
+    activity_type: string;
+    description: string;
+    session_id?: string;
+    artifact_id?: string;
+    project_id?: string;
+    metadata?: any;
+  }) {
+    return this.post('/api/activity-logs/log', data);
+  }
 } 

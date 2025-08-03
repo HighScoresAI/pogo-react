@@ -7,7 +7,6 @@ import {
   Button,
   Link,
   Divider,
-  Grid,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 
@@ -21,7 +20,6 @@ export default function RegisterPage() {
     acceptTerms: false,
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,7 +36,6 @@ export default function RegisterPage() {
 
     // Basic validation
     if (!formData.firstName || !formData.lastName || !formData.email) {
-      setError('Please fill in all required fields.');
       setLoading(false);
       return;
     }
@@ -55,16 +52,14 @@ export default function RegisterPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Registration failed.');
         setLoading(false);
         return;
       }
 
       // Registration successful
       router.push('/login');
-    } catch (err) {
-      setError('Network error. Please try again.');
+    } catch {
+      // Handle error silently
     } finally {
       setLoading(false);
     }

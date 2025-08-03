@@ -9,18 +9,11 @@ import {
   Link,
   Divider,
   Stack,
-  InputAdornment,
-  IconButton,
-  useTheme,
 } from '@mui/material';
-import { Email } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginPage() {
-  const theme = useTheme();
   const router = useRouter();
-  const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState<'email' | 'passcode'>('email');
   const [formData, setFormData] = useState({
     email: '',
@@ -50,8 +43,8 @@ export default function LoginPage() {
 
       // Move to passcode step
       setCurrentStep('passcode');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send passcode. Please try again.');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to send passcode. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -86,8 +79,8 @@ export default function LoginPage() {
 
       // Redirect to welcome page
       router.push('/welcome');
-    } catch (err: any) {
-      setError(err.message || 'Invalid passcode. Please try again.');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Invalid passcode. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -126,8 +119,8 @@ export default function LoginPage() {
 
       // Show success message (you could add a toast notification here)
       console.log('Passcode resent successfully');
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend passcode. Please try again.');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to resend passcode. Please try again.');
     }
   };
 
@@ -388,7 +381,7 @@ export default function LoginPage() {
                   </Typography>
 
                   <Typography variant="body2" sx={{ textAlign: 'center', color: '#666' }}>
-                    Don't have an account?{' '}
+                    Don&apos;t have an account?{' '}
                     <Link href="/register" color="primary" underline="hover">
                       Sign up
                     </Link>
@@ -411,7 +404,7 @@ export default function LoginPage() {
                       Check your email
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#666', mb: 3 }}>
-                      We've sent a 6-digit passcode. Please check your inbox at{' '}
+                      We&apos;ve sent a 6-digit passcode. Please check your inbox at{' '}
                       <span style={{ fontWeight: 600 }}>
                         {formData.email.replace(/(.{2}).*(@.*)/, '$1****$2')}
                       </span>
@@ -503,7 +496,7 @@ export default function LoginPage() {
                   </Button>
 
                   <Typography variant="body2" sx={{ textAlign: 'center', color: '#666' }}>
-                    Don't have an account?{' '}
+                    Don&apos;t have an account?{' '}
                     <Link href="/register" color="primary" underline="hover">
                       Sign up
                     </Link>
