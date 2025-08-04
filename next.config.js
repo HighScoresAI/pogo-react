@@ -12,6 +12,10 @@ const nextConfig = {
         // your project has ESLint errors.
         ignoreDuringBuilds: true,
     },
+    images: {
+        unoptimized: true,
+        remotePatterns: [],
+    },
 }
 
 module.exports = nextConfig 
