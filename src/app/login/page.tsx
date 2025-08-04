@@ -11,6 +11,7 @@ import {
   Stack,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import { ApiClient } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,16 +31,7 @@ export default function LoginPage() {
     setError('');
     try {
       // Send email to get passcode
-      const response = await fetch('http://localhost:5000/auth/send-passcode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to send passcode');
-      }
+      await ApiClient.post('/auth/send-passcode', { email: formData.email });
 
       // Move to passcode step
       setCurrentStep('passcode');
@@ -58,21 +50,10 @@ export default function LoginPage() {
     setError('');
     try {
       // Validate passcode and login
-      const response = await fetch('http://localhost:5000/auth/login-passcode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          passcode: formData.passcode
-        }),
+      const result = await ApiClient.post<{ access_token: string }>('/auth/login-passcode', {
+        email: formData.email,
+        passcode: formData.passcode
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Invalid passcode');
-      }
-
-      const result = await response.json();
 
       // Store the access token
       localStorage.setItem('access_token', result.access_token);
@@ -98,21 +79,12 @@ export default function LoginPage() {
   const handleGoogleSignIn = () => {
     window.location.href = process.env.NEXT_PUBLIC_API_URL
       ? `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
-      : 'http://localhost:5000/auth/google';
+      : 'http://129.212.189.229:5000/auth/google';
   };
 
   const handleResendPasscode = async () => {
     try {
-      const response = await fetch('http://localhost:5000/auth/send-passcode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to resend passcode');
-      }
+      await ApiClient.post('/auth/send-passcode', { email: formData.email });
 
       // Clear the current passcode
       setFormData(prev => ({ ...prev, passcode: '' }));

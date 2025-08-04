@@ -119,7 +119,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      - NEXT_PUBLIC_API_URL=http://129.212.189.229:5000
     volumes:
       - .:/app
       - /app/node_modules

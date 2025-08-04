@@ -9,6 +9,7 @@ import {
   Divider,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import { ApiClient } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -42,20 +43,11 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-        }),
+      await ApiClient.post('/auth/register', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
       });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Registration failed');
-      }
 
       // Registration successful
       router.push('/login');
@@ -69,7 +61,7 @@ export default function RegisterPage() {
   const handleGoogleSignIn = () => {
     window.location.href = process.env.NEXT_PUBLIC_API_URL
       ? `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
-      : 'http://localhost:5000/auth/google';
+      : 'http://129.212.189.229:5000/auth/google';
   };
 
   return (
