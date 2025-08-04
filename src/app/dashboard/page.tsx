@@ -51,7 +51,13 @@ export default function DashboardPage() {
   const { getUserId } = useAuth();
 
   useEffect(() => {
-    ApiClient.get<Project[]>('/projects').then((data) => {
+    const userId = getUserId();
+    if (!userId) {
+      console.error('No user ID found');
+      return;
+    }
+
+    ApiClient.get<Project[]>(`/users/${userId}/projects`).then((data) => {
       // Sort by updatedAt (most recent first)
       const sorted = [...(data || [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       setProjects(sorted);
@@ -63,8 +69,10 @@ export default function DashboardPage() {
         more.push(sorted.slice(i, i + 2));
       }
       setMoreWorkspaces(more);
+    }).catch((error) => {
+      console.error('Error fetching projects:', error);
     });
-  }, []);
+  }, [getUserId]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -95,7 +103,9 @@ export default function DashboardPage() {
         });
 
         // Get processing statistics from backend
+        console.log('Frontend: Fetching processing stats for project:', recentWorkspace.projectId);
         const processingStats = await ApiClient.get<{ sessions?: { percentage: number }, audio?: { percentage: number }, images?: { percentage: number } }>(`/projects/${recentWorkspace.projectId}/processing-stats`);
+        console.log('Frontend: Received processing stats:', processingStats);
 
         setStats([
           { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: sessions.length },
@@ -108,7 +118,8 @@ export default function DashboardPage() {
           { label: 'Audio', value: processingStats.audio?.percentage || 0 },
           { label: 'Images', value: processingStats.images?.percentage || 0 },
         ]);
-      } catch {
+      } catch (error) {
+        console.error('Frontend: Error fetching stats:', error);
         setStats([
           { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
           { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
@@ -431,33 +442,110 @@ export default function DashboardPage() {
       </Box>
 
       {/* Create new workspace dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)}>
-        <DialogTitle>Create New Workspace</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: 3,
+            minWidth: 400,
+            maxWidth: 500,
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          fontWeight: 600,
+          fontSize: 20,
+          pb: 2,
+          pt: 3,
+          px: 3,
+          borderBottom: '1px solid #f0f0f0'
+        }}>
+          Create New Workspace
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, pb: 2, px: 3 }}>
           <TextField
             autoFocus
-            margin="dense"
             label="Workspace Name"
             type="text"
             fullWidth
-            variant="standard"
+            variant="outlined"
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
+            placeholder="Enter workspace name"
+            sx={{
+              mt: 1,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                height: 56,
+                '& fieldset': {
+                  borderColor: '#e0e0e0',
+                  borderWidth: 1,
+                },
+                '&:hover fieldset': {
+                  borderColor: '#00AAF8',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#00AAF8',
+                  borderWidth: 2,
+                },
+                '& input': {
+                  padding: '16px 14px',
+                  fontSize: 16,
+                  color: '#333',
+                  '&::placeholder': {
+                    color: '#999',
+                    opacity: 1,
+                  },
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: '#666',
+                fontSize: 16,
+                '&.Mui-focused': {
+                  color: '#00AAF8',
+                },
+                '&.Mui-shrink': {
+                  color: '#666',
+                },
+              },
+              '& .MuiFormHelperText-root': {
+                display: 'none',
+              },
+            }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)} color="primary">
+        <DialogActions sx={{ px: 3, pb: 3, gap: 2 }}>
+          <Button
+            onClick={() => setCreateDialogOpen(false)}
+            sx={{
+              color: '#666',
+              fontWeight: 500,
+              textTransform: 'none',
+              fontSize: 16,
+              px: 3,
+              py: 1,
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+              },
+            }}
+          >
             Cancel
           </Button>
           <Button
             onClick={async () => {
               setCreatingProject(true);
               try {
-                await ApiClient.post('/projects', { name: newProjectName, createdBy: getUserId() });
+                const userId = getUserId();
+                if (!userId) {
+                  throw new Error('No user ID found');
+                }
+                await ApiClient.post('/projects', { name: newProjectName, createdBy: userId });
                 setCreateDialogOpen(false);
                 setNewProjectName('');
                 // Refresh projects list to include the new one
-                ApiClient.get<Project[]>('/projects').then((data) => {
+                ApiClient.get<Project[]>(`/users/${userId}/projects`).then((data) => {
                   const sorted = [...(data || [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
                   setProjects(sorted);
                   setRecentWorkspace(sorted[0] || null);
@@ -475,8 +563,26 @@ export default function DashboardPage() {
                 setCreatingProject(false);
               }
             }}
-            color="primary"
             disabled={creatingProject || !newProjectName}
+            variant="contained"
+            sx={{
+              bgcolor: newProjectName ? '#00AAF8' : '#e0e0e0',
+              color: newProjectName ? '#fff' : '#999',
+              fontWeight: 600,
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontSize: 16,
+              boxShadow: 'none',
+              '&:hover': {
+                bgcolor: newProjectName ? '#0095d5' : '#e0e0e0',
+              },
+              '&:disabled': {
+                bgcolor: '#e0e0e0',
+                color: '#999',
+              },
+            }}
           >
             {creatingProject ? 'Creating...' : 'Create'}
           </Button>

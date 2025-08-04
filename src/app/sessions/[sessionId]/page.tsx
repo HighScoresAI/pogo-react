@@ -194,6 +194,7 @@ export default function SessionDetailPage() {
     // Publish modal state
     const [showPublishModal, setShowPublishModal] = useState(false);
     const [publishLoading, setPublishLoading] = useState(false);
+    const [isPublished, setIsPublished] = useState(false);
 
     // Inline TipTap Editor
     const inlineEditor = useEditor({
@@ -711,6 +712,7 @@ export default function SessionDetailPage() {
     // Handler for Describe button
     const handleDescribe = async () => {
         setDescribeLoading(true);
+        setIsPublished(false);
         const screenshotArtifacts = session.artifacts.filter((a: any) => a.captureType === 'screenshot');
         const selectedArtifacts = selectedImages.map(idx => screenshotArtifacts[idx]);
         // 1. Process each selected artifact
@@ -731,6 +733,7 @@ export default function SessionDetailPage() {
     const handleReDescribe = () => {
         setHasTranscript(false);
         setTranscript('');
+        setIsPublished(false);
     };
 
     // Handle Edit button click in Transcription/Description section
@@ -790,6 +793,7 @@ export default function SessionDetailPage() {
                 publishToBlog: options.blog,
             });
             setShowPublishModal(false);
+            setIsPublished(true);
             // You could add a success notification here
         } catch (error) {
             console.error('Error publishing session:', error);
@@ -1353,7 +1357,7 @@ export default function SessionDetailPage() {
                                                         '&:hover': { bgcolor: '#45a049' }
                                                     }}
                                                 >
-                                                    Publish
+                                                    {isPublished ? 'Re-publish' : 'Publish'}
                                                 </Button>
                                                 <Button
                                                     variant="contained"

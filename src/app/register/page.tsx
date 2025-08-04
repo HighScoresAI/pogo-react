@@ -20,6 +20,7 @@ export default function RegisterPage() {
     acceptTerms: false,
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -52,14 +53,14 @@ export default function RegisterPage() {
       });
 
       if (!res.ok) {
-        setLoading(false);
-        return;
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Registration failed');
       }
 
       // Registration successful
       router.push('/login');
-    } catch {
-      // Handle error silently
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -333,6 +334,12 @@ export default function RegisterPage() {
               >
                 {loading ? 'Creating Account...' : 'Continue'}
               </Button>
+
+              {error && (
+                <Typography color="error" sx={{ mt: 2, textAlign: 'center' }}>
+                  {error}
+                </Typography>
+              )}
             </Box>
 
             {/* Legal Text */}

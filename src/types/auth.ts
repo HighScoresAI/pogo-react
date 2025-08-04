@@ -18,5 +18,8 @@ export interface SignupRequest {
 
 export interface SignupResponse {
     message: string;
-    // Add other fields as needed
+    email: string;
+    userId: string;
+    access_token?: string;
+    refresh_token?: string;
 } 

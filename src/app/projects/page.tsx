@@ -93,7 +93,13 @@ export default function ProjectsPage() {
     const fetchProjects = async () => {
       try {
         setLoading(true);
-        const projectsData = await ApiClient.get<Project[]>('/projects');
+        const userId = getUserId();
+        if (!userId) {
+          console.error('No user ID found');
+          setLoading(false);
+          return;
+        }
+        const projectsData = await ApiClient.get<Project[]>(`/users/${userId}/projects`);
         setProjects(projectsData || []);
         // Fetch session/artifact counts for each project
         const stats: { [projectId: string]: { sessions: number; artifacts: number; lastSessionDate: string | null; loading: boolean } } = {};
@@ -136,7 +142,7 @@ export default function ProjectsPage() {
     };
 
     fetchProjects();
-  }, []);
+  }, [getUserId]);
 
   useEffect(() => {
     async function fetchUserNames() {

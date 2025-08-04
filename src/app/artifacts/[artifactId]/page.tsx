@@ -57,6 +57,7 @@ export default function ArtifactDetailPage() {
     // Publish modal state
     const [showPublishModal, setShowPublishModal] = useState(false);
     const [publishLoading, setPublishLoading] = useState(false);
+    const [isPublished, setIsPublished] = useState(false);
     // Delete confirmation dialog state
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -161,6 +162,7 @@ export default function ArtifactDetailPage() {
             setTranscript('');
             setIsEditingInline(false);
             setIsPolling(false);
+            setIsPublished(false);
             if (inlineEditor) {
                 inlineEditor.commands.setContent('');
             }
@@ -219,6 +221,7 @@ export default function ArtifactDetailPage() {
         setDescribeLoading(true);
         setHasProcessedText(false);
         setIsPolling(true);
+        setIsPublished(false);
 
         try {
             // First, process the artifact
@@ -245,6 +248,7 @@ export default function ArtifactDetailPage() {
     const handleReDescribe = () => {
         setHasProcessedText(false);
         setTranscript('');
+        setIsPublished(false);
     };
 
     const handleSidebarClick = (id: string) => {
@@ -334,6 +338,7 @@ export default function ArtifactDetailPage() {
             }
 
             setShowPublishModal(false);
+            setIsPublished(true);
             console.log('Artifact published successfully');
             // You could add a success notification here
         } catch (error) {
@@ -848,7 +853,7 @@ export default function ArtifactDetailPage() {
                                     onClick={() => setShowPublishModal(true)}
                                     sx={{ bgcolor: '#4CAF50', fontWeight: 600, '&:hover': { bgcolor: '#45a049' } }}
                                 >
-                                    Publish Artifact
+                                    {isPublished ? 'Re-publish Artifact' : 'Publish Artifact'}
                                 </Button>
                                 <Button
                                     variant="contained"
