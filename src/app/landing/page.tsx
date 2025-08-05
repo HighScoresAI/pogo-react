@@ -334,7 +334,7 @@ export default function Home() {
               {/* Person with Laptop - Main Layer */}
               <div className="relative z-10">
                 <Image
-                  src="/Person with laptop (symbolizing frustration or a gap in documentation flow)@2x.png"
+                  src="/frustrated-person-laptop.png"
                   alt="Frustrated person looking at laptop"
                   width={600}
                   height={400}
