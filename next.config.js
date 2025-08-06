@@ -13,7 +13,7 @@ const nextConfig = {
         ignoreDuringBuilds: true,
     },
     images: {
-        unoptimized: true,
+        unoptimized: false,
         remotePatterns: [],
         domains: [],
         dangerouslyAllowSVG: true,
@@ -21,8 +21,40 @@ const nextConfig = {
         contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     },
     // Ensure static assets are properly served
-    assetPrefix: '',
+    assetPrefix: process.env.NODE_ENV === 'production' ? undefined : '',
+    basePath: '',
     trailingSlash: false,
+    // Ensure static files are served correctly
+    async headers() {
+        return [
+            {
+                source: '/Frame(.*).svg',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'public, max-age=31536000, immutable',
+                    },
+                    {
+                        key: 'Content-Type',
+                        value: 'image/svg+xml',
+                    },
+                ],
+            },
+            {
+                source: '/hellopogo.png',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'public, max-age=31536000, immutable',
+                    },
+                    {
+                        key: 'Content-Type',
+                        value: 'image/png',
+                    },
+                ],
+            },
+        ];
+    },
     // Optimize static asset handling
     experimental: {
         optimizePackageImports: ['@mui/material', '@mui/icons-material'],

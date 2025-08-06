@@ -32,9 +32,9 @@ export default function DashboardPage() {
   const [otherWorkspaces, setOtherWorkspaces] = useState<Project[]>([]);
   const [moreWorkspaces, setMoreWorkspaces] = useState<Project[][]>([]); // Array of rows, each row is array of 2 projects
   const [stats, setStats] = useState([
-    { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
-    { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
-    { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
+    { icon: <Box component="img" src="/Frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
+    { icon: <Box component="img" src="/Frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
+    { icon: <Box component="img" src="/Frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
   ]);
   const [filesProcessed, setFilesProcessed] = useState([
     { label: 'Sessions', value: 0 },
@@ -78,9 +78,9 @@ export default function DashboardPage() {
     async function fetchStats() {
       if (!recentWorkspace?.projectId) {
         setStats([
-          { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
-          { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
-          { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
+          { icon: <Box component="img" src="/Frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
+          { icon: <Box component="img" src="/Frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
+          { icon: <Box component="img" src="/Frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
         ]);
         setFilesProcessed([
           { label: 'Sessions', value: 0 },
@@ -108,9 +108,9 @@ export default function DashboardPage() {
         console.log('Frontend: Received processing stats:', processingStats);
 
         setStats([
-          { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: sessions.length },
-          { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: audioCount },
-          { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: imageCount },
+          { icon: <Box component="img" src="/Frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: sessions.length },
+          { icon: <Box component="img" src="/Frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: audioCount },
+          { icon: <Box component="img" src="/Frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: imageCount },
         ]);
 
         setFilesProcessed([
@@ -121,9 +121,9 @@ export default function DashboardPage() {
       } catch (error) {
         console.error('Frontend: Error fetching stats:', error);
         setStats([
-          { icon: <Box component="img" src="/frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
-          { icon: <Box component="img" src="/frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
-          { icon: <Box component="img" src="/frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
+          { icon: <Box component="img" src="/Frame (2).svg" alt="Sessions" sx={{ width: 32, height: 32 }} />, label: 'Sessions', value: 0 },
+          { icon: <Box component="img" src="/Frame (1).svg" alt="Audio" sx={{ width: 32, height: 32 }} />, label: 'Audio', value: 0 },
+          { icon: <Box component="img" src="/Frame.svg" alt="Images" sx={{ width: 32, height: 32 }} />, label: 'Images', value: 0 },
         ]);
         setFilesProcessed([
           { label: 'Sessions', value: 0 },
