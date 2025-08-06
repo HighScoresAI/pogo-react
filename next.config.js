@@ -15,6 +15,17 @@ const nextConfig = {
     images: {
         unoptimized: true,
         remotePatterns: [],
+        domains: [],
+        dangerouslyAllowSVG: true,
+        contentDispositionType: 'attachment',
+        contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    },
+    // Ensure static assets are properly served
+    assetPrefix: '',
+    trailingSlash: false,
+    // Optimize static asset handling
+    experimental: {
+        optimizePackageImports: ['@mui/material', '@mui/icons-material'],
     },
 }
 
