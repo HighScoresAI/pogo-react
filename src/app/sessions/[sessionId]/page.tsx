@@ -242,6 +242,7 @@ export default function SessionDetailPage() {
     // Initialize audioStates when session.audioFiles changes
     useEffect(() => {
         if (session && session.audioFiles) {
+            console.log('Initializing audio states for', session.audioFiles.length, 'audio files');
             setAudioStates(
                 session.audioFiles.map(() => ({
                     playing: false,
@@ -250,6 +251,8 @@ export default function SessionDetailPage() {
                     duration: 0,
                 }))
             );
+            // Initialize audio refs array
+            audioRefs.current = new Array(session.audioFiles.length).fill(null);
         }
     }, [session?.audioFiles]);
 
@@ -633,8 +636,13 @@ export default function SessionDetailPage() {
 
     // Audio player state and handlers
     const handlePlayPause = (index: number) => {
+        console.log('handlePlayPause called for index:', index);
+        console.log('audioRefs.current:', audioRefs.current);
         const audio = audioRefs.current[index];
+        console.log('audio element:', audio);
         if (audio) {
+            console.log('audio.paused:', audio.paused);
+            console.log('audio.src:', audio.src);
             if (audio.paused) {
                 audio.play().catch(e => console.error('Error playing audio:', e));
                 setAudioStates(prev => prev.map((s, i) => i === index ? { ...s, playing: true } : s));
@@ -642,6 +650,8 @@ export default function SessionDetailPage() {
                 audio.pause();
                 setAudioStates(prev => prev.map((s, i) => i === index ? { ...s, playing: false } : s));
             }
+        } else {
+            console.error('Audio element not found for index:', index);
         }
     };
 
@@ -908,7 +918,8 @@ export default function SessionDetailPage() {
                         <Box sx={{ display: 'flex', gap: 4, mb: 6 }}>
                             {session.audioFiles && session.audioFiles.length > 0 ? (
                                 session.audioFiles.map((url: string, idx: number) => {
-                                    const audioUrl = `http://129.212.189.229:5000${url.replace('/storage', '/media')}`;
+                                    const audioUrl = url; // URL is already complete from backend
+                                    console.log(`Audio ${idx + 1} URL:`, audioUrl);
                                     const state = audioStates[idx] || { playing: false, muted: false, currentTime: 0, duration: 0 };
                                     return (
                                         <Card
@@ -934,12 +945,19 @@ export default function SessionDetailPage() {
                                                     <img src="/lines.png" alt="waveform" style={{ width: 180, height: 40, objectFit: 'contain', opacity: 0.7 }} />
                                                 </Box>
                                                 <audio
-                                                    ref={el => { audioRefs.current[idx] = el; }}
+                                                    ref={el => {
+                                                        audioRefs.current[idx] = el;
+                                                        console.log(`Audio ref set for index ${idx}:`, el);
+                                                    }}
                                                     src={audioUrl}
                                                     onTimeUpdate={() => handleTimeUpdate(idx)}
                                                     onPlay={() => handleTimeUpdate(idx)}
                                                     onPause={() => handleTimeUpdate(idx)}
-                                                    onLoadedMetadata={() => handleTimeUpdate(idx)}
+                                                    onLoadedMetadata={() => {
+                                                        console.log(`Audio loaded metadata for index ${idx}`);
+                                                        handleTimeUpdate(idx);
+                                                    }}
+                                                    onError={(e) => console.error(`Audio error for index ${idx}:`, e)}
                                                     style={{ display: 'none' }}
                                                 />
                                                 <Box sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, px: 3, py: 2, display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center', background: 'rgba(0,0,0,0.0)', zIndex: 2 }}>
