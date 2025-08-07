@@ -908,6 +908,7 @@ export default function SessionDetailPage() {
                         <Box sx={{ display: 'flex', gap: 4, mb: 6 }}>
                             {session.audioFiles && session.audioFiles.length > 0 ? (
                                 session.audioFiles.map((url: string, idx: number) => {
+                                    const audioUrl = `http://129.212.189.229:5000${url.replace('/storage', '/media')}`;
                                     const state = audioStates[idx] || { playing: false, muted: false, currentTime: 0, duration: 0 };
                                     return (
                                         <Card
@@ -935,7 +936,7 @@ export default function SessionDetailPage() {
                                                 </Box>
                                                 <audio
                                                     ref={el => { audioRefs.current[idx] = el; }}
-                                                    src={url}
+                                                    src={audioUrl}
                                                     onTimeUpdate={() => handleTimeUpdate(idx)}
                                                     onPlay={() => handleTimeUpdate(idx)}
                                                     onPause={() => handleTimeUpdate(idx)}
