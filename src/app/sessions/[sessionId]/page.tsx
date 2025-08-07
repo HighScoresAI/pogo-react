@@ -253,6 +253,21 @@ export default function SessionDetailPage() {
             );
             // Initialize audio refs array
             audioRefs.current = new Array(session.audioFiles.length).fill(null);
+            
+            // Set up a timeout to check for duration after a short delay
+            const timeoutId = setTimeout(() => {
+                audioRefs.current.forEach((audio, index) => {
+                    if (audio && audio.duration && audio.duration > 0) {
+                        console.log(`Timeout check: Audio ${index} duration = ${audio.duration}`);
+                        setAudioStates(prev => prev.map((s, i) => i === index ? { 
+                            ...s, 
+                            duration: audio.duration 
+                        } : s));
+                    }
+                });
+            }, 1000);
+            
+            return () => clearTimeout(timeoutId);
         }
     }, [session?.audioFiles]);
 
@@ -643,7 +658,13 @@ export default function SessionDetailPage() {
         if (audio) {
             console.log('audio.paused:', audio.paused);
             console.log('audio.src:', audio.src);
+            console.log('audio.duration:', audio.duration);
             if (audio.paused) {
+                // If duration is not loaded, try to load it first
+                if (!audio.duration || audio.duration === Infinity || isNaN(audio.duration)) {
+                    console.log('Duration not loaded, attempting to load metadata...');
+                    audio.load();
+                }
                 audio.play().catch(e => console.error('Error playing audio:', e));
                 setAudioStates(prev => prev.map((s, i) => i === index ? { ...s, playing: true } : s));
             } else {
@@ -667,7 +688,12 @@ export default function SessionDetailPage() {
     const handleTimeUpdate = (index: number) => {
         const audio = audioRefs.current[index];
         if (audio) {
-            setAudioStates(prev => prev.map((s, i) => i === index ? { ...s, currentTime: audio.currentTime, duration: audio.duration } : s));
+            console.log(`Time update for index ${index}: currentTime=${audio.currentTime}, duration=${audio.duration}`);
+            setAudioStates(prev => prev.map((s, i) => i === index ? { 
+                ...s, 
+                currentTime: audio.currentTime, 
+                duration: audio.duration || s.duration 
+            } : s));
         }
     };
 
@@ -675,6 +701,28 @@ export default function SessionDetailPage() {
         const audio = audioRefs.current[index];
         if (audio) {
             audio.currentTime = time;
+        }
+    };
+
+    const handleLoadedMetadata = (index: number) => {
+        const audio = audioRefs.current[index];
+        if (audio) {
+            console.log(`Loaded metadata for index ${index}: duration=${audio.duration}`);
+            setAudioStates(prev => prev.map((s, i) => i === index ? { 
+                ...s, 
+                duration: audio.duration,
+                currentTime: audio.currentTime 
+            } : s));
+        }
+    };
+
+    const loadAudioDuration = (index: number) => {
+        const audio = audioRefs.current[index];
+        if (audio) {
+            console.log(`Manually loading duration for audio ${index}`);
+            audio.load();
+            // Force a metadata load
+            audio.currentTime = 0;
         }
     };
 
@@ -953,11 +1001,13 @@ export default function SessionDetailPage() {
                                                     onTimeUpdate={() => handleTimeUpdate(idx)}
                                                     onPlay={() => handleTimeUpdate(idx)}
                                                     onPause={() => handleTimeUpdate(idx)}
-                                                    onLoadedMetadata={() => {
-                                                        console.log(`Audio loaded metadata for index ${idx}`);
-                                                        handleTimeUpdate(idx);
+                                                    onLoadedMetadata={() => handleLoadedMetadata(idx)}
+                                                    onCanPlay={() => {
+                                                        console.log(`Audio can play for index ${idx}`);
+                                                        handleLoadedMetadata(idx);
                                                     }}
                                                     onError={(e) => console.error(`Audio error for index ${idx}:`, e)}
+                                                    preload="metadata"
                                                     style={{ display: 'none' }}
                                                 />
                                                 <Box sx={{ position: 'absolute', left: 0, right: 0, bottom: 0, px: 3, py: 2, display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center', background: 'rgba(0,0,0,0.0)', zIndex: 2 }}>

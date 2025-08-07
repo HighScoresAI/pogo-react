@@ -126,6 +126,26 @@ export default function ArtifactDetailPage() {
         checkProcessedArtifacts();
     }, [session]);
 
+    // Handle audio duration loading when selected artifact changes
+    useEffect(() => {
+        if (selectedArtifact && selectedArtifact.captureType === 'audio') {
+            console.log('Selected audio artifact, setting up duration loading...');
+            // Set up a timeout to check for duration after a short delay
+            const timeoutId = setTimeout(() => {
+                const audio = audioRef.current;
+                if (audio && audio.duration && audio.duration > 0) {
+                    console.log(`Timeout check: Audio duration = ${audio.duration}`);
+                    setAudioState(prev => ({
+                        ...prev,
+                        duration: audio.duration
+                    }));
+                }
+            }, 1000);
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [selectedArtifact]);
+
     // Helper function to get artifact status (same as session details page)
     const getArtifactStatus = (artifact: Artifact) => {
         const isProcessed = processed.some(p => p.type === artifact.captureType && p.index === artifacts.findIndex(a => a._id === artifact._id));
@@ -260,7 +280,16 @@ export default function ArtifactDetailPage() {
     const handlePlayPause = () => {
         const audio = audioRef.current;
         if (audio) {
+            console.log('handlePlayPause called');
+            console.log('audio.paused:', audio.paused);
+            console.log('audio.src:', audio.src);
+            console.log('audio.duration:', audio.duration);
             if (audio.paused) {
+                // If duration is not loaded, try to load it first
+                if (!audio.duration || audio.duration === Infinity || isNaN(audio.duration)) {
+                    console.log('Duration not loaded, attempting to load metadata...');
+                    audio.load();
+                }
                 audio.play().catch(e => console.error('Error playing audio:', e));
                 setAudioState(prev => ({ ...prev, playing: true }));
             } else {
@@ -282,7 +311,12 @@ export default function ArtifactDetailPage() {
     const handleTimeUpdate = () => {
         const audio = audioRef.current;
         if (audio) {
-            setAudioState(prev => ({ ...prev, currentTime: audio.currentTime, duration: audio.duration }));
+            console.log(`Time update: currentTime=${audio.currentTime}, duration=${audio.duration}`);
+            setAudioState(prev => ({
+                ...prev,
+                currentTime: audio.currentTime,
+                duration: audio.duration || prev.duration
+            }));
         }
     };
 
@@ -290,6 +324,28 @@ export default function ArtifactDetailPage() {
         const audio = audioRef.current;
         if (audio) {
             audio.currentTime = time;
+        }
+    };
+
+    const handleLoadedMetadata = () => {
+        const audio = audioRef.current;
+        if (audio) {
+            console.log(`Loaded metadata: duration=${audio.duration}`);
+            setAudioState(prev => ({
+                ...prev,
+                duration: audio.duration,
+                currentTime: audio.currentTime
+            }));
+        }
+    };
+
+    const loadAudioDuration = () => {
+        const audio = audioRef.current;
+        if (audio) {
+            console.log('Manually loading audio duration');
+            audio.load();
+            // Force a metadata load
+            audio.currentTime = 0;
         }
     };
 
@@ -551,13 +607,24 @@ export default function ArtifactDetailPage() {
                                                 p: 3
                                             }}>
                                                 {/* Hidden audio element */}
+                                                {(() => {
+                                                    const audioUrl = `http://129.212.189.229:5000${selectedArtifact.url.replace('/storage', '/media')}`;
+                                                    console.log('Audio artifact URL:', audioUrl);
+                                                    return null;
+                                                })()}
                                                 <audio
                                                     ref={audioRef}
                                                     src={`http://129.212.189.229:5000${selectedArtifact.url.replace('/storage', '/media')}`}
                                                     onTimeUpdate={handleTimeUpdate}
                                                     onPlay={() => setAudioState(prev => ({ ...prev, playing: true }))}
                                                     onPause={() => setAudioState(prev => ({ ...prev, playing: false }))}
-                                                    onLoadedMetadata={handleTimeUpdate}
+                                                    onLoadedMetadata={handleLoadedMetadata}
+                                                    onCanPlay={() => {
+                                                        console.log('Audio can play');
+                                                        handleLoadedMetadata();
+                                                    }}
+                                                    onError={(e) => console.error('Audio error:', e)}
+                                                    preload="metadata"
                                                     style={{ display: 'none' }}
                                                 />
 
