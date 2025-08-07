@@ -88,7 +88,7 @@ export default function ArtifactDetailPage() {
             return;
         }
         setLoading(true);
-        fetch(`http://localhost:5000/sessions/${sessionId}`)
+        fetch(`http://129.212.189.229:5000/sessions/${sessionId}`)
             .then(res => res.json())
             .then(data => {
                 console.log('Fetched session:', data);
@@ -113,7 +113,7 @@ export default function ArtifactDetailPage() {
             await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
                 if (artifact && artifact._id) {
                     try {
-                        const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                        const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
                         const data = await response.json();
                         if (data.content && data.content.length > 0) {
                             processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
@@ -136,7 +136,7 @@ export default function ArtifactDetailPage() {
     const getProcessedText = async (artifact: Artifact) => {
         if (artifact?._id) {
             try {
-                const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
                 const data = await response.json();
                 return data.content || '';
             } catch { }
@@ -147,7 +147,7 @@ export default function ArtifactDetailPage() {
     // Fetch project name
     useEffect(() => {
         if (session && session.projectId) {
-            fetch(`http://localhost:5000/projects/${session.projectId}`)
+            fetch(`http://129.212.189.229:5000/projects/${session.projectId}`)
                 .then(res => res.json())
                 .then(proj => setProjectName(proj.name || proj.projectName || ''))
                 .catch(() => setProjectName(''));
@@ -225,7 +225,7 @@ export default function ArtifactDetailPage() {
 
         try {
             // First, process the artifact
-            await fetch(`http://localhost:5000/artifacts/${selectedArtifact._id}/process`, {
+            await fetch(`http://129.212.189.229:5000/artifacts/${selectedArtifact._id}/process`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ priority: 'medium' })
@@ -311,7 +311,7 @@ export default function ArtifactDetailPage() {
             console.log('Publishing artifact:', selectedArtifact._id);
 
             // Call the API to publish the specific artifact
-            await fetch(`http://localhost:5000/artifacts/${selectedArtifact._id}/publish`, {
+            await fetch(`http://129.212.189.229:5000/artifacts/${selectedArtifact._id}/publish`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -326,7 +326,7 @@ export default function ArtifactDetailPage() {
                 try {
                     // For individual artifact vectorization, we'll use the session vectorize endpoint
                     // which will include this artifact's processed text
-                    await fetch(`http://localhost:5000/sessions/${sessionId}/vectorize`, {
+                    await fetch(`http://129.212.189.229:5000/sessions/${sessionId}/vectorize`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                     });
@@ -532,7 +532,7 @@ export default function ArtifactDetailPage() {
                                     {selectedArtifact.captureType === 'screenshot' || selectedArtifact.captureType === 'image' ? (
                                         selectedArtifact.url ? (
                                             <Box sx={{ width: '100%', height: '100%' }}>
-                                                <img src={`http://localhost:5000${selectedArtifact.url.replace('/storage', '/media')}`} alt={selectedArtifact.captureName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                                <img src={`http://129.212.189.229:5000${selectedArtifact.url.replace('/storage', '/media')}`} alt={selectedArtifact.captureName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                                             </Box>
                                         ) : (
                                             <Typography color="text.secondary">No image available.</Typography>
@@ -553,7 +553,7 @@ export default function ArtifactDetailPage() {
                                                 {/* Hidden audio element */}
                                                 <audio
                                                     ref={audioRef}
-                                                    src={`http://localhost:5000${selectedArtifact.url.replace('/storage', '/media')}`}
+                                                    src={`http://129.212.189.229:5000${selectedArtifact.url.replace('/storage', '/media')}`}
                                                     onTimeUpdate={handleTimeUpdate}
                                                     onPlay={() => setAudioState(prev => ({ ...prev, playing: true }))}
                                                     onPause={() => setAudioState(prev => ({ ...prev, playing: false }))}

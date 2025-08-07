@@ -132,6 +132,16 @@ interface Session {
     duration?: string;
     artifacts: Artifact[];
     createdAt: string;
+    // Additional properties used in the code
+    sessionId?: string;
+    sessionName?: string;
+    projectId?: string;
+    audioFiles?: string[];
+    screenshots?: string[];
+    audioArtifacts?: Artifact[];
+    screenshotArtifacts?: Artifact[];
+    createdByName?: string;
+    error?: string;
 }
 
 // Utility to strip HTML tags
@@ -250,7 +260,7 @@ export default function SessionDetailPage() {
                 setViewLoading(true);
                 setViewError('');
                 try {
-                    const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${editorArtifactId}`);
+                    const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${editorArtifactId}`);
                     const data = await response.json();
                     setViewText(data.content || '');
                 } catch (err) {
@@ -302,7 +312,7 @@ export default function SessionDetailPage() {
                     const artifact = session.artifacts.find((a: any) => a.captureType === 'audio' && a.url.split('/').pop() === urlFilename);
                     if (artifact && artifact._id) {
                         try {
-                            const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
                             const data = await response.json();
                             if (data.content && data.content.length > 0) {
                                 processedArr.push({ type: 'audio', index: idx });
@@ -318,7 +328,7 @@ export default function SessionDetailPage() {
                     const artifact = session.artifacts.find((a: any) => a.captureType === 'screenshot' && a.url.split('/').pop() === urlFilename);
                     if (artifact && artifact._id) {
                         try {
-                            const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
                             const data = await response.json();
                             if (data.content && data.content.length > 0) {
                                 processedArr.push({ type: 'screenshot', index: idx });
@@ -354,7 +364,7 @@ export default function SessionDetailPage() {
     const checkSessionProcessed = async () => {
         setEditLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/sessions/${session.sessionId}/processed-texts`);
+            const res = await fetch(`http://129.212.189.229:5000/sessions/${session.sessionId}/processed-texts`);
             const data = await res.json();
             if (Array.isArray(data)) {
                 const allProcessed = data.length > 0 && data.every((a: any) => a.processedText && a.processedText.length > 0);
@@ -371,7 +381,7 @@ export default function SessionDetailPage() {
         console.log('Edit button clicked');
         setEditLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/sessions/${session.sessionId}/processed-texts`);
+            const res = await fetch(`http://129.212.189.229:5000/sessions/${session.sessionId}/processed-texts`);
             const data = await res.json();
             console.log('Fetched processed texts:', data);
             if (Array.isArray(data)) {
@@ -390,7 +400,7 @@ export default function SessionDetailPage() {
 
     const handleProcessAllArtifacts = async () => {
         try {
-            await fetch(`http://localhost:5000/sessions/${session.sessionId}/process`, {
+            await fetch(`http://129.212.189.229:5000/sessions/${session.sessionId}/process`, {
                 method: 'POST',
             });
             alert('Processing started for all artifacts in this session!');
@@ -402,7 +412,7 @@ export default function SessionDetailPage() {
     const handleVectorizeSession = async () => {
         setVectorizeLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/sessions/${session.sessionId}/vectorize`, {
+            const res = await fetch(`http://129.212.189.229:5000/sessions/${session.sessionId}/vectorize`, {
                 method: 'POST',
             });
             const data = await res.json();
@@ -492,7 +502,7 @@ export default function SessionDetailPage() {
         }
         setEditLoading(true);
         try {
-            const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${editorArtifactId}`);
+            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${editorArtifactId}`);
             const data = await response.json();
             setEditorContent('');
             setEditorInitialContent(data.content || '');
@@ -512,13 +522,13 @@ export default function SessionDetailPage() {
             return;
         }
         try {
-            await fetch(`http://localhost:5000/artifacts/${editorArtifactId}/content`, {
+            await fetch(`http://129.212.189.229:5000/artifacts/${editorArtifactId}/content`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: newContent })
             });
             // Re-fetch the latest processed text from backend after save
-            const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${editorArtifactId}`);
+            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${editorArtifactId}`);
             const data = await response.json();
             setViewText(data.content || newContent);
             setEditOpen(false);
@@ -553,7 +563,7 @@ export default function SessionDetailPage() {
         let processedText = '';
         if (artifactId) {
             try {
-                const response = await fetch(`http://localhost:5000/artifacts/artifact-updates/latest/${artifactId}`);
+                const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifactId}`);
                 const data = await response.json();
                 processedText = data.content || '';
             } catch (err) {
@@ -588,7 +598,7 @@ export default function SessionDetailPage() {
             const artifact = session.artifacts.find((a: any) => a.captureType === type && a.captureName === name);
             if (artifact && artifact._id) {
                 try {
-                    const res = await fetch(`http://localhost:5000/artifacts/${artifact._id}/content`, {
+                    const res = await fetch(`http://129.212.189.229:5000/artifacts/${artifact._id}/content`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: text })
@@ -606,7 +616,7 @@ export default function SessionDetailPage() {
     // Helper to fetch and update editor content from backend
     async function fetchAndSetEditorContent() {
         if (!session) return;
-        const res = await fetch(`http://localhost:5000/sessions/${session.sessionId}/processed-texts`);
+        const res = await fetch(`http://129.212.189.229:5000/sessions/${session.sessionId}/processed-texts`);
         const data = await res.json();
         if (Array.isArray(data)) {
             const content = data.map((a: any) => `--- ${a.captureType.toUpperCase()} - ${a.captureName} ---\n${a.processedText || ''}`)
@@ -1063,7 +1073,7 @@ export default function SessionDetailPage() {
                         }}>
                             {session.artifacts && session.artifacts.filter((a: Artifact) => a.captureType === 'screenshot').length > 0 ? (
                                 session.artifacts.filter((a: Artifact) => a.captureType === 'screenshot').map((artifact: Artifact, idx: number) => {
-                                    const imageUrl = `http://localhost:5000${artifact.url.replace('/storage', '/media')}`;
+                                    const imageUrl = `http://129.212.189.229:5000${artifact.url.replace('/storage', '/media')}`;
                                     return (
                                         <Box
                                             key={artifact._id}

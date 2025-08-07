@@ -278,7 +278,7 @@ function SessionsContent() {
     // Add handler for processing all artifacts in a session
     const handleProcessAllArtifacts = async (sessionId: string) => {
         try {
-            await fetch(`http://localhost:5000/sessions/${sessionId}/process`, {
+            await fetch(`http://129.212.189.229:5000/sessions/${sessionId}/process`, {
                 method: 'POST',
             });
             alert('Processing started for all artifacts in this session!');
