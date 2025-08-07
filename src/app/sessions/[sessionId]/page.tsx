@@ -253,20 +253,20 @@ export default function SessionDetailPage() {
             );
             // Initialize audio refs array
             audioRefs.current = new Array(session.audioFiles.length).fill(null);
-            
+
             // Set up a timeout to check for duration after a short delay
             const timeoutId = setTimeout(() => {
                 audioRefs.current.forEach((audio, index) => {
                     if (audio && audio.duration && audio.duration > 0) {
                         console.log(`Timeout check: Audio ${index} duration = ${audio.duration}`);
-                        setAudioStates(prev => prev.map((s, i) => i === index ? { 
-                            ...s, 
-                            duration: audio.duration 
+                        setAudioStates(prev => prev.map((s, i) => i === index ? {
+                            ...s,
+                            duration: audio.duration
                         } : s));
                     }
                 });
             }, 1000);
-            
+
             return () => clearTimeout(timeoutId);
         }
     }, [session?.audioFiles]);
@@ -689,10 +689,10 @@ export default function SessionDetailPage() {
         const audio = audioRefs.current[index];
         if (audio) {
             console.log(`Time update for index ${index}: currentTime=${audio.currentTime}, duration=${audio.duration}`);
-            setAudioStates(prev => prev.map((s, i) => i === index ? { 
-                ...s, 
-                currentTime: audio.currentTime, 
-                duration: audio.duration || s.duration 
+            setAudioStates(prev => prev.map((s, i) => i === index ? {
+                ...s,
+                currentTime: audio.currentTime,
+                duration: audio.duration || s.duration
             } : s));
         }
     };
@@ -708,10 +708,10 @@ export default function SessionDetailPage() {
         const audio = audioRefs.current[index];
         if (audio) {
             console.log(`Loaded metadata for index ${index}: duration=${audio.duration}`);
-            setAudioStates(prev => prev.map((s, i) => i === index ? { 
-                ...s, 
+            setAudioStates(prev => prev.map((s, i) => i === index ? {
+                ...s,
                 duration: audio.duration,
-                currentTime: audio.currentTime 
+                currentTime: audio.currentTime
             } : s));
         }
     };
