@@ -267,11 +267,11 @@ export default function SessionDetailPage() {
         async function fetchSession() {
             setLoading(true);
             try {
-                const res = await fetch(`http://localhost:5000/sessions/${sessionId}`);
-                const data = await res.json();
+                const data = await ApiClient.get(`/sessions/${sessionId}`);
                 console.log('Fetched session:', data);
                 setSession(data);
             } catch (err) {
+                console.error('Error fetching session:', err);
                 setSession(null);
             } finally {
                 setLoading(false);
