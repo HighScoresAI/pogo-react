@@ -251,7 +251,7 @@ export default function SessionDetailPage() {
                 }))
             );
         }
-    }, [session && session.audioFiles]);
+    }, [session?.audioFiles]);
 
     // Always fetch latest processed text when modal is opened
     useEffect(() => {
@@ -277,7 +277,7 @@ export default function SessionDetailPage() {
         async function fetchSession() {
             setLoading(true);
             try {
-                const data = await ApiClient.get(`/sessions/${sessionId}`);
+                const data = await ApiClient.get(`/sessions/${sessionId}`) as Session;
                 console.log('Fetched session:', data);
                 setSession(data);
             } catch (err) {
@@ -918,7 +918,6 @@ export default function SessionDetailPage() {
                                                 maxWidth: 380,
                                                 p: 0,
                                                 borderRadius: 3,
-                                                boxShadow: 2,
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 alignItems: 'center',
@@ -1391,7 +1390,7 @@ export default function SessionDetailPage() {
                         <Box sx={{ mb: 8 }}>
                             <ActivityLogList
                                 type="session"
-                                id={sessionId || ''}
+                                id={String(sessionId) || ''}
                                 title="Log history"
                             />
                         </Box>
