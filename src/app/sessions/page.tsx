@@ -99,7 +99,7 @@ function SessionsContent() {
             setIsLoading(true);
             let endpoint = '/sessions/';
             if (projectId) {
-                endpoint = `/sessions/project/${projectId}`;
+                endpoint = `/projects/${projectId}/sessions`;
             }
             const response = await ApiClient.get<Session[]>(endpoint);
             setSessions(response);

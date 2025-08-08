@@ -142,6 +142,7 @@ interface Session {
     screenshotArtifacts?: Artifact[];
     createdByName?: string;
     error?: string;
+    vectorized_artifacts?: Array<{ artifact_id: string; status: string; vectorized_at: string }>;
 }
 
 // Utility to strip HTML tags
@@ -172,6 +173,7 @@ export default function SessionDetailPage() {
     const [deleteTarget, setDeleteTarget] = useState<{ type: 'audio' | 'screenshot', index: number } | null>(null);
     const [processing, setProcessing] = useState<{ type: 'audio' | 'screenshot', index: number } | null>(null);
     const [processed, setProcessed] = useState<{ type: 'audio' | 'screenshot', index: number }[]>([]);
+    const [published, setPublished] = useState<{ type: 'audio' | 'screenshot', index: number }[]>([]);
     const [viewOpen, setViewOpen] = useState(false);
     const [viewText, setViewText] = useState<string>('');
     const [viewLoading, setViewLoading] = useState(false);
@@ -318,44 +320,92 @@ export default function SessionDetailPage() {
         }
     }, [session]);
 
-    // After session is loaded, check which artifacts are processed
+    // After session is loaded, check which artifacts are processed and published
     useEffect(() => {
         async function checkProcessedArtifacts() {
             if (!session || !session.artifacts) return;
             const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+            const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+
+            // Use session status to determine artifact status
+            const sessionStatus = session.status?.toLowerCase() || 'draft';
+            const isSessionPublished = sessionStatus === 'published';
+            const isSessionProcessed = sessionStatus === 'processed';
+
             // Check audio files
             if (session.audioFiles && session.audioFiles.length > 0) {
-                await Promise.all(session.audioFiles.map(async (url: string, idx: number) => {
-                    const urlFilename = url.split('/').pop();
-                    const artifact = session.artifacts.find((a: any) => a.captureType === 'audio' && a.url.split('/').pop() === urlFilename);
+                for (let idx = 0; idx < session.audioFiles.length; idx++) {
+                    const url = session.audioFiles[idx];
+                    // Extract filename from both URLs for comparison
+                    const audioFilename = url.split('/').pop();
+                    const artifact = session.artifacts.find((a: any) => {
+                        if (a.captureType === 'audio') {
+                            const artifactFilename = a.url.split('/').pop();
+                            return artifactFilename === audioFilename;
+                        }
+                        return false;
+                    });
+
                     if (artifact && artifact._id) {
-                        try {
-                            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
-                            const data = await response.json();
-                            if (data.content && data.content.length > 0) {
-                                processedArr.push({ type: 'audio', index: idx });
+                        // Check if this specific artifact is vectorized
+                        const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
+
+                        if (isSessionPublished || isArtifactVectorized) {
+                            publishedArr.push({ type: 'audio', index: idx });
+                        } else {
+                            // For non-published sessions, check if this artifact has processed content
+                            try {
+                                const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                                const data = await response.json();
+                                if (data.content && data.content.length > 0) {
+                                    processedArr.push({ type: 'audio', index: idx });
+                                }
+                            } catch (error) {
+                                console.error('Error checking artifact processing status:', error);
                             }
-                        } catch { }
+                        }
                     }
-                }));
+                }
             }
+
             // Check screenshots
             if (session.screenshots && session.screenshots.length > 0) {
-                await Promise.all(session.screenshots.map(async (url: string, idx: number) => {
-                    const urlFilename = url.split('/').pop();
-                    const artifact = session.artifacts.find((a: any) => a.captureType === 'screenshot' && a.url.split('/').pop() === urlFilename);
+                for (let idx = 0; idx < session.screenshots.length; idx++) {
+                    const url = session.screenshots[idx];
+                    // Extract filename from both URLs for comparison
+                    const screenshotFilename = url.split('/').pop();
+                    const artifact = session.artifacts.find((a: any) => {
+                        if (a.captureType === 'screenshot') {
+                            const artifactFilename = a.url.split('/').pop();
+                            return artifactFilename === screenshotFilename;
+                        }
+                        return false;
+                    });
+
                     if (artifact && artifact._id) {
-                        try {
-                            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
-                            const data = await response.json();
-                            if (data.content && data.content.length > 0) {
-                                processedArr.push({ type: 'screenshot', index: idx });
+                        // Check if this specific artifact is vectorized
+                        const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
+
+                        if (isSessionPublished || isArtifactVectorized) {
+                            publishedArr.push({ type: 'screenshot', index: idx });
+                        } else {
+                            // For non-published sessions, check if this artifact has processed content
+                            try {
+                                const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                                const data = await response.json();
+                                if (data.content && data.content.length > 0) {
+                                    processedArr.push({ type: 'screenshot', index: idx });
+                                }
+                            } catch (error) {
+                                console.error('Error checking artifact processing status:', error);
                             }
-                        } catch { }
+                        }
                     }
-                }));
+                }
             }
+
             setProcessed(processedArr);
+            setPublished(publishedArr);
         }
         checkProcessedArtifacts();
     }, [session]);
@@ -439,6 +489,44 @@ export default function SessionDetailPage() {
             alert('Failed to vectorize session: ' + (err?.message || err));
         }
         setVectorizeLoading(false);
+    };
+
+    const handleVectorizeArtifact = async (type: 'audio' | 'screenshot', index: number) => {
+        try {
+            let artifact;
+            if (type === 'audio') {
+                const url = session.audioFiles[index];
+                const urlFilename = url.split('/').pop();
+                artifact = session.artifacts?.find((a: any) => a.captureType === 'audio' && a.url.split('/').pop() === urlFilename);
+            } else {
+                const url = session.screenshots[index];
+                const urlFilename = url.split('/').pop();
+                artifact = session.artifacts?.find((a: any) => a.captureType === 'screenshot' && a.url.split('/').pop() === urlFilename);
+            }
+
+            const artifactId = artifact?._id;
+            if (!artifactId) {
+                alert('No artifact found!');
+                return;
+            }
+
+            const res = await fetch(`http://129.212.189.229:5000/sessions/${session.sessionId}/vectorize/${artifactId}`, {
+                method: 'POST',
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                alert('Artifact vectorized successfully!');
+                // Refresh the session data to update the vectorized_artifacts
+                window.location.reload();
+            } else if (data.status === 'already_vectorized') {
+                alert('Artifact is already vectorized!');
+            } else {
+                alert(data.message || 'Failed to vectorize artifact');
+            }
+        } catch (err: any) {
+            alert('Failed to vectorize artifact: ' + (err?.message || err));
+        }
     };
 
     // Helper to delete artifact
@@ -732,6 +820,34 @@ export default function SessionDetailPage() {
         const remainingSeconds = Math.floor(seconds % 60);
         return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     };
+
+    // Function to get artifact status (Draft, Processed, or Published)
+    const getArtifactStatus = (type: 'audio' | 'screenshot', index: number): { status: string; color: string; bgColor: string } => {
+        const isProcessed = processed.some(p => p.type === type && p.index === index);
+        const isPublished = published.some(p => p.type === type && p.index === index);
+
+        if (isPublished) {
+            return {
+                status: 'Published',
+                color: '#2E7D32',
+                bgColor: '#E8F5E8'
+            };
+        } else if (isProcessed) {
+            return {
+                status: 'Processed',
+                color: '#3CA1E8',
+                bgColor: '#E6F4F9'
+            };
+        } else {
+            return {
+                status: 'Draft',
+                color: '#C97A2B',
+                bgColor: '#FFF4E6'
+            };
+        }
+    };
+
+
 
     // Handler to delete selected images
     const handleDeleteSelectedImages = () => {
@@ -1041,20 +1157,25 @@ export default function SessionDetailPage() {
                                             {/* Label and Status Badge */}
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', p: 2 }}>
                                                 <Typography fontWeight={600} sx={{ fontSize: 18 }}>{`Audio ${idx + 1}`}</Typography>
-                                                <Box sx={{
-                                                    bgcolor: '#FFF4E6',
-                                                    color: '#C97A2B',
-                                                    fontWeight: 600,
-                                                    borderRadius: 999,
-                                                    px: 2.5,
-                                                    py: 0.5,
-                                                    fontSize: 16,
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    minWidth: 0,
-                                                }}>
-                                                    Draft
-                                                </Box>
+                                                {(() => {
+                                                    const statusInfo = getArtifactStatus('audio', idx);
+                                                    return (
+                                                        <Box sx={{
+                                                            bgcolor: statusInfo.bgColor,
+                                                            color: statusInfo.color,
+                                                            fontWeight: 600,
+                                                            borderRadius: 999,
+                                                            px: 2.5,
+                                                            py: 0.5,
+                                                            fontSize: 16,
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            minWidth: 0,
+                                                        }}>
+                                                            {statusInfo.status}
+                                                        </Box>
+                                                    );
+                                                })()}
                                             </Box>
                                         </Card>
                                     )
@@ -1178,18 +1299,25 @@ export default function SessionDetailPage() {
                                             </Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                                                 <Typography fontWeight={600} sx={{ fontSize: 16 }}>{`Image ${idx + 1}`}</Typography>
-                                                <Box sx={{
-                                                    bgcolor: '#FFF4E6',
-                                                    color: '#C97A2B',
-                                                    fontWeight: 600,
-                                                    borderRadius: 999,
-                                                    px: 2.5,
-                                                    py: 0.5,
-                                                    fontSize: 14,
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    minWidth: 0,
-                                                }}>Draft</Box>
+                                                {(() => {
+                                                    const statusInfo = getArtifactStatus('screenshot', idx);
+                                                    return (
+                                                        <Box sx={{
+                                                            bgcolor: statusInfo.bgColor,
+                                                            color: statusInfo.color,
+                                                            fontWeight: 600,
+                                                            borderRadius: 999,
+                                                            px: 2.5,
+                                                            py: 0.5,
+                                                            fontSize: 14,
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            minWidth: 0,
+                                                        }}>
+                                                            {statusInfo.status}
+                                                        </Box>
+                                                    );
+                                                })()}
                                             </Box>
                                         </Box>
                                     )

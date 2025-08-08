@@ -37,9 +37,10 @@ export default function ArtifactDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [processed, setProcessed] = useState<{ type: 'audio' | 'screenshot', index: number }[]>([]);
+    const [published, setPublished] = useState<{ type: 'audio' | 'screenshot', index: number }[]>([]);
 
     const [transcript, setTranscript] = useState('');
-    const [session, setSession] = useState<{ projectId?: string; sessionName?: string; sessionId?: string; createdByName?: string; createdAt?: string; artifacts?: Artifact[] } | null>(null);
+    const [session, setSession] = useState<{ projectId?: string; sessionName?: string; sessionId?: string; createdByName?: string; createdAt?: string; artifacts?: Artifact[]; status?: string; description?: string; _id?: string; vectorized_artifacts?: Array<{ artifact_id: string; status: string; vectorized_at: string }> } | null>(null);
     const [projectName, setProjectName] = useState('');
     const [audioRef] = useState<React.MutableRefObject<HTMLAudioElement | null>>(React.useRef(null));
     const [audioState, setAudioState] = useState<{ playing: boolean; muted: boolean; currentTime: number; duration: number }>({
@@ -109,19 +110,39 @@ export default function ArtifactDetailPage() {
         async function checkProcessedArtifacts() {
             if (!session || !session.artifacts) return;
             const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+            const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+
+            // Use session status to determine artifact status
+            const sessionStatus = session.status?.toLowerCase() || 'draft';
+            const isSessionPublished = sessionStatus === 'published';
+            const isSessionProcessed = sessionStatus === 'processed';
+
             // Check all artifacts
-            await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
+            for (let idx = 0; idx < session.artifacts.length; idx++) {
+                const artifact = session.artifacts[idx];
                 if (artifact && artifact._id) {
-                    try {
-                        const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
-                        const data = await response.json();
-                        if (data.content && data.content.length > 0) {
-                            processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+                    // Check if this specific artifact is vectorized
+                    const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
+
+                    if (isSessionPublished || isArtifactVectorized) {
+                        publishedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+                    } else {
+                        // For non-published sessions, check if this artifact has processed content
+                        try {
+                            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                            const data = await response.json();
+                            if (data.content && data.content.length > 0) {
+                                processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+                            }
+                        } catch (error) {
+                            console.error('Error checking artifact processing status:', error);
                         }
-                    } catch { }
+                    }
                 }
-            }));
+            }
+
             setProcessed(processedArr);
+            setPublished(publishedArr);
         }
         checkProcessedArtifacts();
     }, [session]);
@@ -147,10 +168,32 @@ export default function ArtifactDetailPage() {
     }, [selectedArtifact]);
 
     // Helper function to get artifact status (same as session details page)
-    const getArtifactStatus = (artifact: Artifact) => {
-        const isProcessed = processed.some(p => p.type === artifact.captureType && p.index === artifacts.findIndex(a => a._id === artifact._id));
-        return isProcessed ? 'Processed' : 'Draft';
+    const getArtifactStatus = (artifact: Artifact): { status: string; color: string; bgColor: string } => {
+        const isProcessed = processed.some(p => p.type === artifact.captureType && p.index === (session?.artifacts?.findIndex(a => a._id === artifact._id) ?? -1));
+        const isPublished = published.some(p => p.type === artifact.captureType && p.index === (session?.artifacts?.findIndex(a => a._id === artifact._id) ?? -1));
+
+        if (isPublished) {
+            return {
+                status: 'Published',
+                color: '#2E7D32',
+                bgColor: '#E8F5E8'
+            };
+        } else if (isProcessed) {
+            return {
+                status: 'Processed',
+                color: '#3CA1E8',
+                bgColor: '#E6F4F9'
+            };
+        } else {
+            return {
+                status: 'Draft',
+                color: '#C97A2B',
+                bgColor: '#FFF4E6'
+            };
+        }
     };
+
+
 
     // Helper function to get processed text for an artifact
     const getProcessedText = async (artifact: Artifact) => {
@@ -380,15 +423,14 @@ export default function ArtifactDetailPage() {
             if (options.chatbot) {
                 console.log('Publishing to chatbot - vectorizing artifact text...');
                 try {
-                    // For individual artifact vectorization, we'll use the session vectorize endpoint
-                    // which will include this artifact's processed text
-                    await fetch(`http://129.212.189.229:5000/sessions/${sessionId}/vectorize`, {
+                    // Use the new individual artifact vectorization endpoint
+                    await fetch(`http://129.212.189.229:5000/sessions/${sessionId}/vectorize/${artifactId}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                     });
-                    console.log('Artifact text vectorized successfully');
+                    console.log('Artifact vectorized successfully');
                 } catch (vectorizeError) {
-                    console.error('Error vectorizing artifact text:', vectorizeError);
+                    console.error('Error vectorizing artifact:', vectorizeError);
                     // Don't fail the publish if vectorization fails
                 }
             }
@@ -396,6 +438,36 @@ export default function ArtifactDetailPage() {
             setShowPublishModal(false);
             setIsPublished(true);
             console.log('Artifact published successfully');
+
+            // Refresh the processed and published status after publishing
+            if (session && session.artifacts) {
+                const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+                const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+
+                await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
+                    if (artifact && artifact._id) {
+                        try {
+                            const response = await fetch(`http://129.212.189.229:5000/artifacts/artifact-updates/latest/${artifact._id}`);
+                            const data = await response.json();
+                            if (data.content && data.content.length > 0) {
+                                processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+
+                                // Check if published (vectorized for chatbot or logged as published)
+                                try {
+                                    const publishedResponse = await fetch(`http://129.212.189.229:5000/artifacts/${artifact._id}/published-status`);
+                                    const publishedData = await publishedResponse.json();
+                                    if (publishedData.is_published || publishedData.is_vectorized) {
+                                        publishedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+                                    }
+                                } catch { }
+                            }
+                        } catch { }
+                    }
+                }));
+                setProcessed(processedArr);
+                setPublished(publishedArr);
+            }
+
             // You could add a success notification here
         } catch (error) {
             console.error('Error publishing artifact:', error);
@@ -511,7 +583,7 @@ export default function ArtifactDetailPage() {
                         ) : (
                             <List sx={{ mb: 2 }}>
                                 {artifacts.filter((a: Artifact) => a.captureType === 'audio').map((artifact: Artifact, idx: number) => {
-                                    const status = getArtifactStatus(artifact);
+                                    const statusInfo = getArtifactStatus(artifact);
                                     return (
                                         <ListItem key={`audio-${artifact._id}`} disablePadding sx={{ mb: 1 }}>
                                             <ListItemButton selected={artifact._id === artifactId} onClick={() => handleSidebarClick(artifact._id)} sx={{ borderRadius: 2, flexDirection: 'column', alignItems: 'flex-start', py: 1.5 }}>
@@ -521,8 +593,8 @@ export default function ArtifactDetailPage() {
                                                     </Box>
                                                     <Typography sx={{ fontWeight: 600, fontSize: 14 }}>{`Audio ${idx + 1}`}</Typography>
                                                 </Box>
-                                                <Box sx={{ ml: 4.5, px: 1.5, py: 0.3, borderRadius: 1, fontSize: 12, fontWeight: 600, bgcolor: status === 'Processed' ? '#E6F4F9' : '#FFF4E6', color: status === 'Processed' ? '#3CA1E8' : '#C97A2B' }}>
-                                                    {status}
+                                                <Box sx={{ ml: 4.5, px: 1.5, py: 0.3, borderRadius: 1, fontSize: 12, fontWeight: 600, bgcolor: statusInfo.bgColor, color: statusInfo.color }}>
+                                                    {statusInfo.status}
                                                 </Box>
                                             </ListItemButton>
                                         </ListItem>
@@ -537,7 +609,7 @@ export default function ArtifactDetailPage() {
                         ) : (
                             <List>
                                 {artifacts.filter((a: Artifact) => a.captureType === 'screenshot').map((artifact: Artifact, idx: number) => {
-                                    const status = getArtifactStatus(artifact);
+                                    const statusInfo = getArtifactStatus(artifact);
                                     return (
                                         <ListItem key={`screenshot-${artifact._id}`} disablePadding sx={{ mb: 1 }}>
                                             <ListItemButton selected={artifact._id === artifactId} onClick={() => handleSidebarClick(artifact._id)} sx={{ borderRadius: 2, flexDirection: 'column', alignItems: 'flex-start', py: 1.5 }}>
@@ -547,8 +619,8 @@ export default function ArtifactDetailPage() {
                                                     </Box>
                                                     <Typography sx={{ fontWeight: 600, fontSize: 14 }}>{`Image ${idx + 1}`}</Typography>
                                                 </Box>
-                                                <Box sx={{ ml: 4.5, px: 1.5, py: 0.3, borderRadius: 1, fontSize: 12, fontWeight: 600, bgcolor: status === 'Processed' ? '#E6F4F9' : '#FFF4E6', color: status === 'Processed' ? '#3CA1E8' : '#C97A2B' }}>
-                                                    {status}
+                                                <Box sx={{ ml: 4.5, px: 1.5, py: 0.3, borderRadius: 1, fontSize: 12, fontWeight: 600, bgcolor: statusInfo.bgColor, color: statusInfo.color }}>
+                                                    {statusInfo.status}
                                                 </Box>
                                             </ListItemButton>
                                         </ListItem>

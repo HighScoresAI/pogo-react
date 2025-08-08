@@ -39,7 +39,7 @@ export default function ProjectDetailsStatic() {
     const [projectDetails, setProjectDetails] = useState<{ name?: string; projectName?: string; description?: string; createdAt?: string; createdBy?: string } | null>(null);
     const [creatorName, setCreatorName] = useState<string>('');
     const [createdAt, setCreatedAt] = useState<string>('');
-    const [sessions, setSessions] = useState<Array<{ _id: string; name?: string; createdBy?: string; createdAt?: string; status?: string; artifacts?: Array<{ captureType?: string }>; updatedBy?: string; lastUpdatedBy?: string; updatedAt?: string; lastUpdatedAt?: string }>>([]);
+    const [sessions, setSessions] = useState<Array<{ _id: string; name?: string; createdBy?: string; createdAt?: string; status?: string; calculatedStatus?: string; artifacts?: Array<{ _id: string; captureType?: string; url?: string }>; updatedBy?: string; lastUpdatedBy?: string; updatedAt?: string; lastUpdatedAt?: string }>>([]);
     const [userMap, setUserMap] = useState<{ [userId: string]: string }>({});
     const params = useParams();
     const projectId = params?.projectId;
@@ -103,8 +103,14 @@ export default function ProjectDetailsStatic() {
         async function fetchSessions() {
             if (!projectId) return;
             try {
-                const data = await ApiClient.get<Array<{ _id: string; name?: string; createdBy?: string; createdAt?: string; status?: string; artifacts?: Array<{ captureType?: string }>; updatedBy?: string; lastUpdatedBy?: string; updatedAt?: string; lastUpdatedAt?: string }>>(`/projects/${projectId}/sessions`);
-                setSessions(data);
+                const data = await ApiClient.get<Array<{ _id: string; name?: string; createdBy?: string; createdAt?: string; status?: string; artifacts?: Array<{ _id: string; captureType?: string; url?: string }>; updatedBy?: string; lastUpdatedBy?: string; updatedAt?: string; lastUpdatedAt?: string }>>(`/projects/${projectId}/sessions`);
+
+                // Use the session status from the backend
+                const sessionsWithStatus = data.map((session) => {
+                    return { ...session, calculatedStatus: session.status || 'draft' };
+                });
+
+                setSessions(sessionsWithStatus);
             } catch {
                 setSessions([]);
             }
@@ -380,7 +386,7 @@ export default function ProjectDetailsStatic() {
                                                 </TableCell>
                                                 <TableCell sx={{ py: 2.2 }}>
                                                     {(() => {
-                                                        const status = (row.status || '').toLowerCase();
+                                                        const status = (row.calculatedStatus || row.status || '').toLowerCase();
                                                         let label = '';
                                                         let bgColor = '';
                                                         let dotColor = '';
@@ -401,7 +407,7 @@ export default function ProjectDetailsStatic() {
                                                             dotColor = '#388E3C';
                                                             textColor = '#388E3C';
                                                         } else {
-                                                            label = row.status || 'Unknown';
+                                                            label = row.calculatedStatus || row.status || 'Unknown';
                                                             bgColor = 'rgba(0,0,0,0.04)';
                                                             dotColor = '#222';
                                                             textColor = '#222';
