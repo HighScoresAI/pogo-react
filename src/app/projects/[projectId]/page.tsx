@@ -54,14 +54,18 @@ export default function ProjectDetailsStatic() {
         async function fetchStats() {
             if (!projectId) return;
             try {
-                const stats = await ApiClient.get<{ total?: number; draft?: number; processed?: number; published?: number }>(`/projects/${projectId}/session-stats`);
+                // Add cache-busting parameter to force fresh data
+                const timestamp = Date.now();
+                const stats = await ApiClient.get<{ total?: number; draft?: number; processed?: number; published?: number }>(`/projects/${projectId}/session-stats?t=${timestamp}`);
+                console.log('Fetched project stats:', stats); // Debug log
                 setOverviewStats([
                     { label: 'Sessions', value: stats.total ?? 0, icon: <img src="/Frame (2).svg" alt="Sessions" style={{ width: 28, height: 28 }} /> },
                     { label: 'Draft Sessions', value: stats.draft ?? 0, icon: <img src="/draft session.svg" alt="Draft Sessions" style={{ width: 28, height: 28 }} /> },
                     { label: 'Processed Session', value: stats.processed ?? 0, icon: <img src="/magic-star.svg" alt="Processed Session" style={{ width: 28, height: 28 }} /> },
                     { label: 'Published Sessions', value: stats.published ?? 0, icon: <img src="/published.svg" alt="Published Sessions" style={{ width: 28, height: 28 }} /> },
                 ]);
-            } catch {
+            } catch (error) {
+                console.error('Error fetching project stats:', error); // Debug log
                 setOverviewStats([
                     { label: 'Sessions', value: 0, icon: <img src="/Frame (2).svg" alt="Sessions" style={{ width: 28, height: 28 }} /> },
                     { label: 'Draft Sessions', value: 0, icon: <img src="/draft session.svg" alt="Draft Sessions" style={{ width: 28, height: 28 }} /> },
@@ -71,6 +75,10 @@ export default function ProjectDetailsStatic() {
             }
         }
         fetchStats();
+
+        // Refresh stats every 5 seconds to ensure we have the latest data
+        const interval = setInterval(fetchStats, 5000);
+        return () => clearInterval(interval);
     }, [projectId]);
 
     useEffect(() => {
@@ -221,7 +229,29 @@ export default function ProjectDetailsStatic() {
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 4, mb: 4 }}>
                         {/* Overview (left) */}
                         <Box sx={{ maxWidth: 700, flex: 1 }}>
-                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Overview</Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="h6" fontWeight={600}>Overview</Typography>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => {
+                                        const timestamp = Date.now();
+                                        ApiClient.get<{ total?: number; draft?: number; processed?: number; published?: number }>(`/projects/${projectId}/session-stats?t=${timestamp}`)
+                                            .then(stats => {
+                                                console.log('Manual refresh - Fetched project stats:', stats);
+                                                setOverviewStats([
+                                                    { label: 'Sessions', value: stats.total ?? 0, icon: <img src="/Frame (2).svg" alt="Sessions" style={{ width: 28, height: 28 }} /> },
+                                                    { label: 'Draft Sessions', value: stats.draft ?? 0, icon: <img src="/draft session.svg" alt="Draft Sessions" style={{ width: 28, height: 28 }} /> },
+                                                    { label: 'Processed Session', value: stats.processed ?? 0, icon: <img src="/magic-star.svg" alt="Processed Session" style={{ width: 28, height: 28 }} /> },
+                                                    { label: 'Published Sessions', value: stats.published ?? 0, icon: <img src="/published.svg" alt="Published Sessions" style={{ width: 28, height: 28 }} /> },
+                                                ]);
+                                            })
+                                            .catch(error => console.error('Manual refresh error:', error));
+                                    }}
+                                >
+                                    Refresh Stats
+                                </Button>
+                            </Box>
                             <Box
                                 sx={{
                                     display: 'grid',
