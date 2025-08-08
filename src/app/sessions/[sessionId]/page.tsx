@@ -529,6 +529,61 @@ export default function SessionDetailPage() {
         }
     };
 
+    // Calculate progress percentages based on actual session data
+    const calculateProgressPercentages = () => {
+        if (!session || !session.artifacts) {
+            return { draft: 0, processed: 0, published: 0 };
+        }
+
+        const totalArtifacts = session.artifacts.length;
+        if (totalArtifacts === 0) {
+            return { draft: 0, processed: 0, published: 0 };
+        }
+
+        let draftCount = 0;
+        let processedCount = 0;
+        let publishedCount = 0;
+
+        // Count artifacts by status
+        session.artifacts.forEach((artifact: any) => {
+            const isVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
+
+            if (isVectorized) {
+                publishedCount++;
+            } else {
+                // Check if artifact has processed content
+                const hasProcessedContent = processed.some((p: any) => {
+                    if (p.type === 'audio') {
+                        const audioUrl = session.audioFiles?.[p.index];
+                        const audioFilename = audioUrl?.split('/').pop();
+                        const artifactFilename = artifact.url?.split('/').pop();
+                        return artifact.captureType === 'audio' && audioFilename === artifactFilename;
+                    } else if (p.type === 'screenshot') {
+                        const screenshotUrl = session.screenshots?.[p.index];
+                        const screenshotFilename = screenshotUrl?.split('/').pop();
+                        const artifactFilename = artifact.url?.split('/').pop();
+                        return artifact.captureType === 'screenshot' && screenshotFilename === artifactFilename;
+                    }
+                    return false;
+                });
+
+                if (hasProcessedContent) {
+                    processedCount++;
+                } else {
+                    draftCount++;
+                }
+            }
+        });
+
+        return {
+            draft: Math.round((draftCount / totalArtifacts) * 100),
+            processed: Math.round((processedCount / totalArtifacts) * 100),
+            published: Math.round((publishedCount / totalArtifacts) * 100)
+        };
+    };
+
+    const progressPercentages = calculateProgressPercentages();
+
     // Helper to delete artifact
     const handleDeleteArtifact = async () => {
         if (!deleteTarget) return;
@@ -1050,30 +1105,30 @@ export default function SessionDetailPage() {
                             <Box sx={{ width: '100%' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                                     <Typography sx={{ fontWeight: 500 }}>Draft</Typography>
-                                    <Typography sx={{ fontWeight: 600 }}>{'80%'}</Typography>
+                                    <Typography sx={{ fontWeight: 600 }}>{progressPercentages.draft}%</Typography>
                                 </Box>
                                 <Box sx={{ position: 'relative', height: 8, bgcolor: '#E5EAF2', borderRadius: 4, overflow: 'hidden', width: '100%' }}>
-                                    <Box sx={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '80%', bgcolor: '#C97A2B', borderRadius: 4 }} />
+                                    <Box sx={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${progressPercentages.draft}%`, bgcolor: '#C97A2B', borderRadius: 4 }} />
                                 </Box>
                             </Box>
                             {/* Processed Bar */}
                             <Box sx={{ width: '100%' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                                     <Typography sx={{ fontWeight: 500 }}>Processed</Typography>
-                                    <Typography sx={{ fontWeight: 600 }}>{'65%'}</Typography>
+                                    <Typography sx={{ fontWeight: 600 }}>{progressPercentages.processed}%</Typography>
                                 </Box>
                                 <Box sx={{ position: 'relative', height: 8, bgcolor: '#E5EAF2', borderRadius: 4, overflow: 'hidden', width: '100%' }}>
-                                    <Box sx={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '65%', bgcolor: '#3CA1E8', borderRadius: 4 }} />
+                                    <Box sx={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${progressPercentages.processed}%`, bgcolor: '#3CA1E8', borderRadius: 4 }} />
                                 </Box>
                             </Box>
                             {/* Published Bar */}
                             <Box sx={{ width: '100%' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                                     <Typography sx={{ fontWeight: 500 }}>Published</Typography>
-                                    <Typography sx={{ fontWeight: 600 }}>{'55%'}</Typography>
+                                    <Typography sx={{ fontWeight: 600 }}>{progressPercentages.published}%</Typography>
                                 </Box>
                                 <Box sx={{ position: 'relative', height: 8, bgcolor: '#E5EAF2', borderRadius: 4, overflow: 'hidden', width: '100%' }}>
-                                    <Box sx={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '55%', bgcolor: '#3CC97A', borderRadius: 4 }} />
+                                    <Box sx={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${progressPercentages.published}%`, bgcolor: '#3CC97A', borderRadius: 4 }} />
                                 </Box>
                             </Box>
                         </Box>
