@@ -39,7 +39,7 @@ import {
     Stop,
 } from '@mui/icons-material';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ApiClient } from '../../lib/api';
+import { ApiClient, getApiBaseUrl } from '@/lib/api';
 
 interface Session {
     _id: string;
@@ -278,7 +278,7 @@ function SessionsContent() {
     // Add handler for processing all artifacts in a session
     const handleProcessAllArtifacts = async (sessionId: string) => {
         try {
-            await fetch(`http://129.212.189.229:5000/sessions/${sessionId}/process`, {
+            await fetch(`${getApiBaseUrl()}/sessions/${sessionId}/process`, {
                 method: 'POST',
             });
             alert('Processing started for all artifacts in this session!');

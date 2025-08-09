@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://129.212.189.229:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.hellopogo.com/';
 
 // Utility function to get the base URL for any remaining hardcoded URLs
 export const getApiBaseUrl = () => API_BASE_URL;

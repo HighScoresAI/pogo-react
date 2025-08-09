@@ -11,7 +11,7 @@ import {
   Stack,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { ApiClient } from '@/lib/api';
+import { ApiClient, getApiBaseUrl } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -77,9 +77,7 @@ export default function LoginPage() {
 
 
   const handleGoogleSignIn = () => {
-    window.location.href = process.env.NEXT_PUBLIC_API_URL
-      ? `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
-      : 'http://129.212.189.229:5000/auth/google';
+    window.location.href = `${getApiBaseUrl()}/auth/google`;
   };
 
   const handleResendPasscode = async () => {
