@@ -15,6 +15,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
+import ActivityLogList from '../../../components/ActivityLogList';
 
 const mockTeam = [
     { name: 'Darlene Robertson', role: 'Owner', avatar: '', },
@@ -175,15 +176,65 @@ export default function ProjectDetailsStatic() {
     const handleRenameSession = async () => {
         if (selectedSessionIdx === null) return;
         const session = sessions[selectedSessionIdx];
+        console.log('Renaming session:', session);
+        console.log('New name:', renameValue);
+
         try {
-            await ApiClient.put(`/sessions/${session._id}`, { name: renameValue });
-            const updatedSession = { ...session, name: renameValue, updatedAt: new Date().toISOString() };
-            const updatedSessions = [...sessions];
-            updatedSessions[selectedSessionIdx] = updatedSession;
-            updatedSessions.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
-            setSessions(updatedSessions);
+            const response = await ApiClient.put(`/sessions/${session._id}`, {
+                name: renameValue
+            });
+            console.log('Rename API response:', response);
+
+            // Refresh the sessions data from the backend to get the updated name
+            try {
+                const refreshedSessions = await ApiClient.get<Array<{ _id: string; name?: string; createdBy?: string; createdAt?: string; status?: string; calculatedStatus?: string; artifacts?: Array<{ _id: string; captureType?: string; url?: string }>; updatedBy?: string; lastUpdatedBy?: string; updatedAt?: string; lastUpdatedAt?: string }>>(`/projects/${projectId}/sessions`);
+                console.log('Refreshed sessions:', refreshedSessions);
+                setSessions(refreshedSessions);
+            } catch (refreshError) {
+                console.error('Failed to refresh sessions:', refreshError);
+                // Fallback to local update if refresh fails
+                const updatedSession = { ...session, name: renameValue, updatedAt: new Date().toISOString() };
+                const updatedSessions = [...sessions];
+                updatedSessions[selectedSessionIdx] = updatedSession;
+                updatedSessions.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+                setSessions(updatedSessions);
+            }
+
+            // Log the session rename activity
+            try {
+                console.log('Logging session rename activity:', {
+                    activity_type: 'session_renamed',
+                    description: `Session renamed from "${session.name || 'Unknown'}" to "${renameValue}"`,
+                    session_id: session._id,
+                    project_id: projectId as string,
+                    metadata: {
+                        old_name: session.name || 'Unknown',
+                        new_name: renameValue
+                    }
+                });
+
+                const logResponse = await ApiClient.logActivity({
+                    activity_type: 'session_renamed',
+                    description: `Session renamed from "${session.name || 'Unknown'}" to "${renameValue}"`,
+                    session_id: session._id,
+                    project_id: projectId as string,
+                    metadata: {
+                        old_name: session.name || 'Unknown',
+                        new_name: renameValue
+                    }
+                });
+                console.log('Session rename activity logged successfully:', logResponse);
+            } catch (logError) {
+                console.error('Failed to log session rename activity:', logError);
+                console.error('Log error details:', {
+                    message: logError.message,
+                    stack: logError.stack
+                });
+            }
+
             setSnackbar({ open: true, message: 'Session renamed successfully!', severity: 'success' });
-        } catch {
+        } catch (error) {
+            console.error('Rename error:', error);
             setSnackbar({ open: true, message: 'Failed to rename session.', severity: 'error' });
         }
         setRenameDialogOpen(false);
@@ -195,6 +246,33 @@ export default function ProjectDetailsStatic() {
             await ApiClient.delete(`/sessions/${session._id}`);
             const updatedSessions = sessions.filter((_, idx) => idx !== selectedSessionIdx);
             setSessions(updatedSessions);
+
+            // Log the session deletion activity
+            try {
+                console.log('Logging session deletion activity:', {
+                    activity_type: 'session_deleted',
+                    description: `Session "${session.name || 'Unknown'}" was deleted`,
+                    session_id: session._id,
+                    project_id: projectId as string,
+                    metadata: {
+                        session_name: session.name || 'Unknown'
+                    }
+                });
+
+                await ApiClient.logActivity({
+                    activity_type: 'session_deleted',
+                    description: `Session "${session.name || 'Unknown'}" was deleted`,
+                    session_id: session._id,
+                    project_id: projectId as string,
+                    metadata: {
+                        session_name: session.name || 'Unknown'
+                    }
+                });
+                console.log('Session deletion activity logged successfully');
+            } catch (logError) {
+                console.error('Failed to log session deletion activity:', logError);
+            }
+
             setSnackbar({ open: true, message: 'Session deleted successfully!', severity: 'success' });
         } catch {
             setSnackbar({ open: true, message: 'Failed to delete session.', severity: 'error' });
@@ -205,6 +283,9 @@ export default function ProjectDetailsStatic() {
     const filteredSessions = sessions.filter(
         (row) => (row.name || '').toLowerCase().includes(search.toLowerCase())
     );
+
+    console.log('Project ID for ActivityLogList:', projectId);
+    console.log('Sessions data:', sessions);
 
     return (
         <Box sx={{ bgcolor: '#fafbfc', minHeight: '100vh', overflowY: 'auto', overflowX: 'hidden' }}>
@@ -231,26 +312,6 @@ export default function ProjectDetailsStatic() {
                         <Box sx={{ maxWidth: 700, flex: 1 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                 <Typography variant="h6" fontWeight={600}>Overview</Typography>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() => {
-                                        const timestamp = Date.now();
-                                        ApiClient.get<{ total?: number; draft?: number; processed?: number; published?: number }>(`/projects/${projectId}/session-stats?t=${timestamp}`)
-                                            .then(stats => {
-                                                console.log('Manual refresh - Fetched project stats:', stats);
-                                                setOverviewStats([
-                                                    { label: 'Sessions', value: stats.total ?? 0, icon: <img src="/Frame (2).svg" alt="Sessions" style={{ width: 28, height: 28 }} /> },
-                                                    { label: 'Draft Sessions', value: stats.draft ?? 0, icon: <img src="/draft session.svg" alt="Draft Sessions" style={{ width: 28, height: 28 }} /> },
-                                                    { label: 'Processed Session', value: stats.processed ?? 0, icon: <img src="/magic-star.svg" alt="Processed Session" style={{ width: 28, height: 28 }} /> },
-                                                    { label: 'Published Sessions', value: stats.published ?? 0, icon: <img src="/published.svg" alt="Published Sessions" style={{ width: 28, height: 28 }} /> },
-                                                ]);
-                                            })
-                                            .catch(error => console.error('Manual refresh error:', error));
-                                    }}
-                                >
-                                    Refresh Stats
-                                </Button>
                             </Box>
                             <Box
                                 sx={{
@@ -394,7 +455,19 @@ export default function ProjectDetailsStatic() {
                                                 }}
                                             >
                                                 <TableCell sx={{ py: 2.2 }}>
-                                                    <Typography fontWeight={600}>{row._id}</Typography>
+                                                    <Typography fontWeight={600}>
+                                                        {(() => {
+                                                            if (row.name) {
+                                                                // If name contains a timestamp, extract just the date part
+                                                                const timestampMatch = row.name.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                                                                if (timestampMatch) {
+                                                                    return timestampMatch[1];
+                                                                }
+                                                                return row.name;
+                                                            }
+                                                            return row._id;
+                                                        })()}
+                                                    </Typography>
                                                 </TableCell>
                                                 <TableCell sx={{ py: 2.2 }}>
                                                     <Typography variant="body2" fontWeight={500}>{row.createdBy ? userMap[row.createdBy] || row.createdBy : '-'}</Typography>
@@ -530,6 +603,15 @@ export default function ProjectDetailsStatic() {
                             </Box>
                         </TableContainer>
                         <Box sx={{ height: 40 }} />
+                    </Box>
+
+                    {/* Activity Logs Section */}
+                    <Box sx={{ maxWidth: 1020, width: '100%', mt: 2 }}>
+                        <Typography variant="h6" fontWeight={600} sx={{ mb: -5 }}>Activity Logs</Typography>
+                        <ActivityLogList
+                            type="project"
+                            id={projectId as string}
+                        />
                     </Box>
                 </Box>
             </Box>

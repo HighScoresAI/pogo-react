@@ -238,4 +238,53 @@ export class ApiClient {
   }) {
     return this.post('/api/activity-logs/log', data);
   }
+
+  // Blog methods
+  static async getBlogPosts(): Promise<{ blog_posts: any[] }> {
+    return this.get('/api/blog/posts');
+  }
+
+  static async getBlogPost(blogId: string): Promise<any> {
+    return this.get(`/api/blog/posts/${blogId}`);
+  }
+
+  static async getBlogPostsBySession(sessionId: string): Promise<{ blog_posts: any[] }> {
+    return this.get(`/api/blog/posts/session/${sessionId}`);
+  }
+
+  static async createBlogPost(sessionId: string, customTitle?: string, customTags?: string[]): Promise<any> {
+    return this.post('/api/blog/posts', {
+      session_id: sessionId,
+      custom_title: customTitle,
+      custom_tags: customTags
+    });
+  }
+
+  static async updateBlogPost(blogId: string, updateData: any): Promise<any> {
+    return this.put(`/api/blog/posts/${blogId}`, updateData);
+  }
+
+  static async deleteBlogPost(blogId: string): Promise<any> {
+    return this.delete(`/api/blog/posts/${blogId}`);
+  }
+
+  static async downloadBlogWordDoc(blogId: string): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}/api/blog/posts/${blogId}/download`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download document');
+    }
+
+    return await response.blob();
+  }
+
+  static async regenerateBlogPost(blogId: string): Promise<any> {
+    return this.post(`/api/blog/posts/${blogId}/regenerate`, {});
+  }
+
+  static async getSessions(): Promise<{ sessions: any[] }> {
+    return this.get('/sessions');
+  }
 } 

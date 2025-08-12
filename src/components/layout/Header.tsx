@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import ArticleIcon from "@mui/icons-material/Article";
 import Link from "next/link";
 import { ApiClient } from '../../lib/api';
 import { useRouter } from 'next/navigation';
@@ -73,6 +74,23 @@ export default function Header() {
                         sx={{ fontWeight: 700, color: "#222", textDecoration: 'none', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                     >
                         Dashboard
+                    </Typography>
+                    <Typography
+                        component={Link}
+                        href="/blog"
+                        variant="body1"
+                        sx={{ 
+                            color: "#888", 
+                            textDecoration: 'none', 
+                            cursor: 'pointer', 
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            '&:hover': { textDecoration: 'underline' } 
+                        }}
+                    >
+                        <ArticleIcon sx={{ fontSize: 20 }} />
+                        Blog
                     </Typography>
                     <Typography
                         component={Link}

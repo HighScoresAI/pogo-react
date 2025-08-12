@@ -294,6 +294,23 @@ export default function ArtifactDetailPage() {
                 body: JSON.stringify({ priority: 'medium' })
             });
 
+            // Log the artifact processing activity
+            try {
+                await ApiClient.logActivity({
+                    activity_type: 'artifact_processed',
+                    description: `Artifact "${selectedArtifact.captureType || 'Unknown'}" processed/described`,
+                    session_id: sessionId as string,
+                    artifact_id: selectedArtifact._id,
+                    project_id: session?.projectId,
+                    metadata: {
+                        action: 'process',
+                        artifact_type: selectedArtifact.captureType
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to log artifact processing activity:', logError);
+            }
+
             // Set a temporary message while processing
             setTranscript('Processing artifact... Please wait.');
 
@@ -312,6 +329,22 @@ export default function ArtifactDetailPage() {
         setHasProcessedText(false);
         setTranscript('');
         setIsPublished(false);
+
+        // Log the artifact re-describe activity
+        try {
+            ApiClient.logActivity({
+                activity_type: 'artifact_processed',
+                description: 'Artifact re-described/processed',
+                session_id: sessionId as string,
+                artifact_id: artifactId as string,
+                project_id: session?.projectId,
+                metadata: {
+                    action: 're_describe'
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log artifact re-describe activity:', logError);
+        }
     };
 
     const handleSidebarClick = (id: string) => {
@@ -409,26 +442,49 @@ export default function ArtifactDetailPage() {
         try {
             console.log('Publishing artifact:', selectedArtifact._id);
 
+            // Get authentication token
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                throw new Error('Authentication token not found. Please log in again.');
+            }
+
             // Call the API to publish the specific artifact
-            await fetch(`${getApiBaseUrl()}/artifacts/${selectedArtifact._id}/publish`, {
+            const publishResponse = await fetch(`${getApiBaseUrl()}/artifacts/${selectedArtifact._id}/publish`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     publishToChatbot: options.chatbot,
                     publishToBlog: options.blog,
                 }),
             });
 
+            if (!publishResponse.ok) {
+                const errorData = await publishResponse.text();
+                throw new Error(`Publish failed with status ${publishResponse.status}: ${errorData}`);
+            }
+
             // If publishing to chatbot, also vectorize this specific artifact
             if (options.chatbot) {
                 console.log('Publishing to chatbot - vectorizing artifact text...');
                 try {
                     // Use the new individual artifact vectorization endpoint
-                    await fetch(`${getApiBaseUrl()}/sessions/${sessionId}/vectorize/${artifactId}`, {
+                    const vectorizeResponse = await fetch(`${getApiBaseUrl()}/sessions/${sessionId}/vectorize/${artifactId}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
                     });
-                    console.log('Artifact vectorized successfully');
+
+                    if (!vectorizeResponse.ok) {
+                        const errorData = await vectorizeResponse.text();
+                        console.warn(`Vectorization failed with status ${vectorizeResponse.status}: ${errorData}`);
+                    } else {
+                        console.log('Artifact vectorized successfully');
+                    }
                 } catch (vectorizeError) {
                     console.error('Error vectorizing artifact:', vectorizeError);
                     // Don't fail the publish if vectorization fails
@@ -439,6 +495,33 @@ export default function ArtifactDetailPage() {
             setIsPublished(true);
             console.log('Artifact published successfully');
 
+            // Log the artifact publish activity
+            try {
+                let description = 'Artifact published';
+                if (options.chatbot && options.blog) {
+                    description = 'Artifact published to both chatbot and blog';
+                } else if (options.chatbot) {
+                    description = 'Artifact published to chatbot';
+                } else if (options.blog) {
+                    description = 'Artifact published to blog';
+                }
+
+                await ApiClient.logActivity({
+                    activity_type: 'artifact_published',
+                    description: description,
+                    session_id: sessionId as string,
+                    artifact_id: selectedArtifact._id,
+                    project_id: session?.projectId,
+                    metadata: {
+                        publishToChatbot: options.chatbot,
+                        publishToBlog: options.blog,
+                        artifact_type: selectedArtifact.captureType
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to log artifact publish activity:', logError);
+            }
+
             // Refresh the processed and published status after publishing
             if (session && session.artifacts) {
                 const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
@@ -447,14 +530,18 @@ export default function ArtifactDetailPage() {
                 await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
                     if (artifact && artifact._id) {
                         try {
-                            const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`);
+                            const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
                             const data = await response.json();
                             if (data.content && data.content.length > 0) {
                                 processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
 
                                 // Check if published (vectorized for chatbot or logged as published)
                                 try {
-                                    const publishedResponse = await fetch(`${getApiBaseUrl()}/artifacts/${artifact._id}/published-status`);
+                                    const publishedResponse = await fetch(`${getApiBaseUrl()}/artifacts/${artifact._id}/published-status`, {
+                                        headers: { 'Authorization': `Bearer ${token}` }
+                                    });
                                     const publishedData = await publishedResponse.json();
                                     if (publishedData.is_published || publishedData.is_vectorized) {
                                         publishedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
@@ -471,7 +558,8 @@ export default function ArtifactDetailPage() {
             // You could add a success notification here
         } catch (error) {
             console.error('Error publishing artifact:', error);
-            // You could add an error notification here
+            // Show error to user
+            alert(`Failed to publish artifact: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
         } finally {
             setPublishLoading(false);
         }
@@ -487,6 +575,24 @@ export default function ArtifactDetailPage() {
         try {
             console.log('Making delete request for artifact:', selectedArtifact._id);
             await ApiClient.delete(`/artifacts/${selectedArtifact._id}`);
+
+            // Log the artifact deletion activity
+            try {
+                await ApiClient.logActivity({
+                    activity_type: 'artifact_deleted',
+                    description: `Artifact "${selectedArtifact.captureType || 'Unknown'}" was deleted`,
+                    session_id: sessionId as string,
+                    artifact_id: selectedArtifact._id,
+                    project_id: session?.projectId,
+                    metadata: {
+                        artifact_type: selectedArtifact.captureType,
+                        artifact_name: selectedArtifact.captureType || 'Unknown'
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to log artifact deletion activity:', logError);
+            }
+
             // Update the artifacts list in the session
             setSession((prev: { projectId?: string; sessionName?: string; sessionId?: string; createdByName?: string; createdAt?: string; artifacts?: Artifact[] } | null) => {
                 if (prev && prev.artifacts) {

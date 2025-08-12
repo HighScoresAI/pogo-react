@@ -1,12 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation'
 
 export default function Home() {
   const [expandedFAQ, setExpandedFAQ] = useState(0);
   const [billingType, setBillingType] = useState('personal');
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const solutionSectionRef = useRef<HTMLElement>(null);
   const router = useRouter()
 
   const toggleFAQ = (index: number) => {
@@ -16,6 +18,63 @@ export default function Home() {
   const toggleBilling = (type: string) => {
     setBillingType(type);
   };
+
+  // Scroll animation effect for the solution section
+  useEffect(() => {
+    const handleScroll = () => {
+      if (solutionSectionRef.current) {
+        const rect = solutionSectionRef.current.getBoundingClientRect();
+        const sectionHeight = rect.height;
+        const sectionTop = rect.top;
+        const windowHeight = window.innerHeight;
+
+        // Calculate scroll progress within the section
+        if (sectionTop <= windowHeight && sectionTop + sectionHeight >= 0) {
+          const progress = Math.max(0, Math.min(1, (windowHeight - sectionTop) / (windowHeight + sectionHeight)));
+          setScrollProgress(progress);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Initial call
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Calculate colors based on scroll progress
+  const getLineColor = (sectionIndex: number) => {
+    const threshold = sectionIndex * 0.33; // Each section takes 1/3 of the scroll
+    if (scrollProgress >= threshold) {
+      return '#FFFFFF'; // White
+    }
+    return '#3B82F6'; // Blue
+  };
+
+  const getTextColor = (sectionIndex: number) => {
+    const threshold = sectionIndex * 0.33;
+    if (scrollProgress >= threshold) {
+      return '#FFFFFF'; // White
+    }
+    return sectionIndex === 0 ? '#FFFFFF' : '#494949'; // First section is already white, others are gray
+  };
+
+  const getDescriptionColor = (sectionIndex: number) => {
+    const threshold = sectionIndex * 0.33;
+    if (scrollProgress >= threshold) {
+      return '#E9E9E9'; // Light white
+    }
+    return sectionIndex === 0 ? '#E9E9E9' : '#494949';
+  };
+
+  const getLinkColor = (sectionIndex: number) => {
+    const threshold = sectionIndex * 0.33;
+    if (scrollProgress >= threshold) {
+      return '#FFFFFF'; // White
+    }
+    return sectionIndex === 0 ? '#FFFFFF' : '#494949';
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header/Navigation */}
@@ -391,6 +450,7 @@ export default function Home() {
 
       {/* Solution Section */}
       <section
+        ref={solutionSectionRef}
         className="py-20 px-6"
         style={{
           background: '#001119'
@@ -407,6 +467,10 @@ export default function Home() {
               }}
             >
               <span className="text-black text-sm font-medium">Solution</span>
+            </div>
+            {/* Debug scroll progress indicator */}
+            <div className="text-white text-sm mb-4">
+              Scroll Progress: {Math.round(scrollProgress * 100)}%
             </div>
             <h2
               className="mb-4"
@@ -440,18 +504,28 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Text Content */}
             <div className="relative">
-              {/* Blue line for Capture section */}
-              <div className="absolute left-0 top-0 h-40 w-1 bg-blue-500"></div>
-              {/* White line for Convert and Deploy sections */}
-              <div className="absolute left-0 top-40 bottom-0 w-1 bg-white"></div>
+              {/* Main vertical line - starts white, blue moves down as you scroll */}
+              <div
+                className="absolute left-0 top-0 bottom-0 w-1 transition-all duration-700"
+                style={{
+                  background: `linear-gradient(to bottom, 
+                    #3B82F6 0%, 
+                    #3B82F6 ${scrollProgress * 100}%, 
+                    #FFFFFF ${scrollProgress * 100}%, 
+                    #FFFFFF 100%)`
+                }}
+              ></div>
               <div className="pl-8 space-y-12">
                 <div className="relative">
                   {/* Timeline marker for Capture */}
-                  <div className="absolute -left-8 top-3 w-6 h-px bg-blue-500"></div>
+                  <div
+                    className="absolute -left-8 top-3 w-6 h-px transition-all duration-500"
+                    style={{ backgroundColor: getLineColor(0) }}
+                  ></div>
                   <h3
-                    className="mb-4"
+                    className="mb-4 transition-all duration-500"
                     style={{
-                      color: '#FFF',
+                      color: getTextColor(0),
                       fontFamily: 'Inter',
                       fontSize: '24px',
                       fontStyle: 'normal',
@@ -462,9 +536,9 @@ export default function Home() {
                     Capture
                   </h3>
                   <p
-                    className="mb-4"
+                    className="mb-4 transition-all duration-500"
                     style={{
-                      color: '#E9E9E9',
+                      color: getDescriptionColor(0),
                       fontFamily: 'Inter',
                       fontSize: '16px',
                       fontStyle: 'normal',
@@ -476,9 +550,9 @@ export default function Home() {
                   </p>
                   <a
                     href="#"
-                    className="flex items-center space-x-1"
+                    className="flex items-center space-x-1 transition-all duration-500"
                     style={{
-                      color: '#FFF',
+                      color: getLinkColor(0),
                       fontFamily: 'Inter',
                       fontSize: '16px',
                       fontStyle: 'normal',
@@ -495,11 +569,14 @@ export default function Home() {
 
                 <div className="relative">
                   {/* Timeline marker for Convert */}
-                  <div className="absolute -left-8 top-3 w-6 h-px bg-white"></div>
+                  <div
+                    className="absolute -left-8 top-3 w-6 h-px transition-all duration-500"
+                    style={{ backgroundColor: getLineColor(1) }}
+                  ></div>
                   <h3
-                    className="mb-4"
+                    className="mb-4 transition-all duration-500"
                     style={{
-                      color: '#494949',
+                      color: getTextColor(1),
                       fontFamily: 'Inter',
                       fontSize: '24px',
                       fontStyle: 'normal',
@@ -510,9 +587,9 @@ export default function Home() {
                     Convert
                   </h3>
                   <p
-                    className="mb-4"
+                    className="mb-4 transition-all duration-500"
                     style={{
-                      color: '#494949',
+                      color: getDescriptionColor(1),
                       fontFamily: 'Inter',
                       fontSize: '16px',
                       fontStyle: 'normal',
@@ -524,9 +601,9 @@ export default function Home() {
                   </p>
                   <a
                     href="#"
-                    className="flex items-center space-x-1"
+                    className="flex items-center space-x-1 transition-all duration-500"
                     style={{
-                      color: '#494949',
+                      color: getLinkColor(1),
                       fontFamily: 'Inter',
                       fontSize: '16px',
                       fontStyle: 'normal',
@@ -543,11 +620,14 @@ export default function Home() {
 
                 <div className="relative">
                   {/* Timeline marker for Deploy */}
-                  <div className="absolute -left-8 top-3 w-6 h-px bg-white"></div>
+                  <div
+                    className="absolute -left-8 top-3 w-6 h-px transition-all duration-500"
+                    style={{ backgroundColor: getLineColor(2) }}
+                  ></div>
                   <h3
-                    className="mb-4"
+                    className="mb-4 transition-all duration-500"
                     style={{
-                      color: '#494949',
+                      color: getTextColor(2),
                       fontFamily: 'Inter',
                       fontSize: '24px',
                       fontStyle: 'normal',
@@ -558,9 +638,9 @@ export default function Home() {
                     Deploy
                   </h3>
                   <p
-                    className="mb-4"
+                    className="mb-4 transition-all duration-500"
                     style={{
-                      color: '#494949',
+                      color: getDescriptionColor(2),
                       fontFamily: 'Inter',
                       fontSize: '16px',
                       fontStyle: 'normal',
@@ -572,9 +652,9 @@ export default function Home() {
                   </p>
                   <a
                     href="#"
-                    className="flex items-center space-x-1"
+                    className="flex items-center space-x-1 transition-all duration-500"
                     style={{
-                      color: '#494949',
+                      color: getLinkColor(2),
                       fontFamily: 'Inter',
                       fontSize: '16px',
                       fontStyle: 'normal',
@@ -868,14 +948,14 @@ export default function Home() {
               {/* Steps Container */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative z-10">
                 {/* Step 1 */}
-                <div className="text-center">
+                <div className="text-left">
                   <div className="mb-4">
                     <Image
                       src="/one.png"
                       alt="Step 1"
                       width={295}
                       height={44}
-                      className="w-[295px] h-[44px] mx-auto"
+                      className="w-[295px] h-[44px] ml-0"
                     />
                   </div>
                   <h3
@@ -906,14 +986,14 @@ export default function Home() {
                 </div>
 
                 {/* Step 2 */}
-                <div className="text-center">
+                <div className="text-left">
                   <div className="mb-4">
                     <Image
                       src="/2.png"
                       alt="Step 2"
                       width={295}
                       height={44}
-                      className="w-[295px] h-[44px] mx-auto"
+                      className="w-[295px] h-[44px] ml-0"
                     />
                   </div>
                   <h3
@@ -944,14 +1024,14 @@ export default function Home() {
                 </div>
 
                 {/* Step 3 */}
-                <div className="text-center">
+                <div className="text-left">
                   <div className="mb-4">
                     <Image
                       src="/3.png"
                       alt="Step 3"
                       width={295}
                       height={44}
-                      className="w-[295px] h-[44px] mx-auto"
+                      className="w-[295px] h-[44px] ml-0"
                     />
                   </div>
                   <h3
@@ -982,14 +1062,14 @@ export default function Home() {
                 </div>
 
                 {/* Step 4 */}
-                <div className="text-center">
+                <div className="text-left">
                   <div className="mb-4">
                     <Image
                       src="/4.png"
                       alt="Step 4"
                       width={295}
                       height={44}
-                      className="w-[295px] h-[44px] mx-auto"
+                      className="w-[295px] h-[44px] ml-0"
                     />
                   </div>
                   <h3

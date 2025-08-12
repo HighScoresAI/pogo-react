@@ -11,7 +11,8 @@ import {
     History,
     Description,
     Image,
-    Audiotrack
+    Audiotrack,
+    Person
 } from '@mui/icons-material';
 import { ApiClient } from '../lib/api';
 
@@ -31,9 +32,12 @@ interface ActivityLogListProps {
 
 const getActivityIcon = (activityType: string) => {
     switch (activityType) {
+        case 'session_created':
+        case 'artifact_created':
+            return <Create color="primary" />;
         case 'session_processed':
         case 'artifact_processed':
-            return <PlayArrow color="primary" />;
+            return <PlayArrow color="info" />;
         case 'session_published':
         case 'artifact_published':
             return <Publish color="success" />;
@@ -42,10 +46,15 @@ const getActivityIcon = (activityType: string) => {
             return <Delete color="error" />;
         case 'session_renamed':
         case 'artifact_edited':
-            return <Edit color="info" />;
-        case 'session_created':
-        case 'artifact_created':
-            return <Create color="primary" />;
+            return <Edit color="warning" />;
+        case 'project_created':
+        case 'project_updated':
+        case 'project_deleted':
+            return <Description color="primary" />;
+        case 'user_login':
+        case 'user_logout':
+        case 'user_registered':
+            return <Person color="action" />;
         default:
             return <History color="action" />;
     }
@@ -68,6 +77,14 @@ const getActivityColor = (activityType: string) => {
         case 'session_created':
         case 'artifact_created':
             return '#F3E5F5';
+        case 'project_created':
+        case 'project_updated':
+        case 'project_deleted':
+            return '#F1F8E9';
+        case 'user_login':
+        case 'user_logout':
+        case 'user_registered':
+            return '#FFF3E0';
         default:
             return '#FAFAFA';
     }
@@ -98,6 +115,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
         const fetchLogs = async () => {
             try {
                 setLoading(true);
+                console.log(`Fetching logs for type: ${type}, id: ${id}`);
                 let response;
 
                 switch (type) {
@@ -114,6 +132,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                         throw new Error('Invalid log type');
                 }
 
+                console.log('API response:', response);
                 setLogs(response.logs || []);
             } catch (err) {
                 console.error('Error fetching logs:', err);
@@ -153,9 +172,11 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
         <Box>
             {/* Header with search */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6" fontWeight={600}>
-                    {title || 'Activity Log'}
-                </Typography>
+                {title && (
+                    <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center' }}>
+                        {title}
+                    </Typography>
+                )}
                 <Box sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -166,6 +187,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                     py: 0.5,
                     minWidth: 160,
                     boxShadow: 'none',
+                    ml: 'auto'
                 }}>
                     <Search sx={{ color: '#B0B8C1', fontSize: 22, mr: 1 }} />
                     <InputBase

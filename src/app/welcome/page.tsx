@@ -177,7 +177,7 @@ export default function LandingPage() {
                         overflow: "hidden",
                     }}
                 >
-                    {/* Star background effect */}
+                    {/* Video background */}
                     <Box
                         sx={{
                             position: "absolute",
@@ -189,9 +189,11 @@ export default function LandingPage() {
                             pointerEvents: "none",
                         }}
                     >
-                        <img
-                            src="/14081587_1920_1080_60fps 2.png"
-                            alt="Star Background"
+                        <video
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
                             style={{
                                 width: '1114px',
                                 height: '523px',
@@ -199,7 +201,10 @@ export default function LandingPage() {
                                 display: 'block',
                                 flexShrink: 0,
                             }}
-                        />
+                        >
+                            <source src="/videooo.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
                     </Box>
                     <Box sx={{ position: "relative", zIndex: 1, textAlign: "center" }}>
                         <Typography

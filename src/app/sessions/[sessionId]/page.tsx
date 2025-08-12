@@ -973,6 +973,21 @@ export default function SessionDetailPage() {
         setHasTranscript(false);
         setTranscript('');
         setIsPublished(false);
+
+        // Log the session re-describe activity
+        try {
+            ApiClient.logActivity({
+                activity_type: 'session_processed',
+                description: 'Session re-described/processed',
+                session_id: sessionId as string,
+                project_id: session?.projectId,
+                metadata: {
+                    action: 're_describe'
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log session re-describe activity:', logError);
+        }
     };
 
     // Handle Edit button click in Transcription/Description section
@@ -1033,6 +1048,32 @@ export default function SessionDetailPage() {
             });
             setShowPublishModal(false);
             setIsPublished(true);
+
+            // Log the session publish activity
+            try {
+                let description = 'Session published';
+                if (options.chatbot && options.blog) {
+                    description = 'Session published to both chatbot and blog';
+                } else if (options.chatbot) {
+                    description = 'Session published to chatbot';
+                } else if (options.blog) {
+                    description = 'Session published to blog';
+                }
+
+                await ApiClient.logActivity({
+                    activity_type: 'session_published',
+                    description: description,
+                    session_id: sessionId as string,
+                    project_id: session?.projectId,
+                    metadata: {
+                        publishToChatbot: options.chatbot,
+                        publishToBlog: options.blog
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to log session publish activity:', logError);
+            }
+
             // You could add a success notification here
         } catch (error) {
             console.error('Error publishing session:', error);
