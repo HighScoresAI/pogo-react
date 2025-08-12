@@ -100,7 +100,7 @@ export default function LoginPage() {
         minHeight: '100vh',
         width: '100vw',
         display: 'flex',
-        bgcolor: '#f5f5f5',
+        bgcolor: '#fff',
       }}
     >
       <Box
@@ -109,6 +109,12 @@ export default function LoginPage() {
           height: '100vh',
           display: 'flex',
           bgcolor: '#fff',
+          ml: 2,
+          mr: 4,
+          mt: -1,
+          mb: 4,
+          borderRadius: '0px',
+          overflow: 'hidden',
         }}
       >
         {/* Left Panel - Illustration and Marketing */}
@@ -121,12 +127,12 @@ export default function LoginPage() {
             alignItems: 'center',
             justifyContent: 'center',
             p: 4,
-            mx: 2,
-            my: 2,
             position: 'relative',
-            borderRadius: '0 12px 12px 0',
+            borderRadius: '24px',
             overflow: 'hidden',
-            height: '100vh',
+            height: 'calc(100vh - 48px)',
+            mx: 2,
+            my: 3,
           }}
         >
           {/* Main Content Container */}
@@ -153,10 +159,10 @@ export default function LoginPage() {
               sx={{
                 width: 'auto',
                 height: 'auto',
-                maxWidth: '80%',
-                maxHeight: '40%',
+                maxWidth: '70%',
+                maxHeight: '20%',
                 objectFit: 'contain',
-                mb: 4,
+                mb: 3,
               }}
             />
 
@@ -238,6 +244,10 @@ export default function LoginPage() {
             justifyContent: 'center',
             alignItems: 'center',
             bgcolor: '#fff',
+            borderRadius: '24px',
+            mx: 2,
+            my: 3,
+            height: 'calc(100vh - 48px)',
           }}
         >
           <Box
@@ -275,7 +285,7 @@ export default function LoginPage() {
                       fontStyle: 'normal',
                       fontWeight: 500,
                       lineHeight: 'normal',
-                      borderRadius: 2,
+                      borderRadius: 4,
                       py: 2,
                       bgcolor: '#fff',
                       borderColor: '#E0E0E0',
@@ -314,7 +324,7 @@ export default function LoginPage() {
                     placeholder="Enter your email"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
+                        borderRadius: 4,
                       },
                     }}
                   />
@@ -327,7 +337,7 @@ export default function LoginPage() {
                     sx={{
                       fontWeight: 600,
                       fontSize: '1rem',
-                      borderRadius: 2,
+                      borderRadius: 4,
                       py: 2,
                       bgcolor: '#1976d2',
                       '&:hover': {
@@ -341,18 +351,18 @@ export default function LoginPage() {
 
                   <Typography variant="body2" sx={{ textAlign: 'center', color: '#666' }}>
                     By signing up, you agree to our{' '}
-                    <Link href="/terms" color="primary" underline="hover">
+                    <Link href="/terms" sx={{ color: '#00AAF8' }} underline="hover">
                       Terms
                     </Link>{' '}
                     &{' '}
-                    <Link href="/privacy" color="primary" underline="hover">
+                    <Link href="/privacy" sx={{ color: '#00AAF8' }} underline="hover">
                       Privacy Policy
                     </Link>
                   </Typography>
 
                   <Typography variant="body2" sx={{ textAlign: 'center', color: '#666' }}>
                     Don&apos;t have an account?{' '}
-                    <Link href="/register" color="primary" underline="hover">
+                    <Link href="/register" sx={{ color: '#00AAF8' }} underline="hover">
                       Sign up
                     </Link>
                   </Typography>
@@ -422,7 +432,7 @@ export default function LoginPage() {
                         sx={{
                           width: 50,
                           '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
+                            borderRadius: 4,
                             height: 50,
                           },
                         }}
@@ -453,7 +463,7 @@ export default function LoginPage() {
                     sx={{
                       fontWeight: 600,
                       fontSize: '1rem',
-                      borderRadius: 2,
+                      borderRadius: 4,
                       py: 1.5,
                       bgcolor: '#1976d2',
                       '&:hover': {
@@ -467,7 +477,7 @@ export default function LoginPage() {
 
                   <Typography variant="body2" sx={{ textAlign: 'center', color: '#666' }}>
                     Don&apos;t have an account?{' '}
-                    <Link href="/register" color="primary" underline="hover">
+                    <Link href="/register" sx={{ color: '#00AAF8' }} underline="hover">
                       Sign up
                     </Link>
                   </Typography>

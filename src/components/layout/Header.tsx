@@ -75,23 +75,16 @@ export default function Header() {
                     >
                         Dashboard
                     </Typography>
+
                     <Typography
                         component={Link}
                         href="/blog"
                         variant="body1"
-                        sx={{ 
-                            color: "#888", 
-                            textDecoration: 'none', 
-                            cursor: 'pointer', 
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            '&:hover': { textDecoration: 'underline' } 
-                        }}
+                        sx={{ color: "#888", textDecoration: 'none', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                     >
-                        <ArticleIcon sx={{ fontSize: 20 }} />
                         Blog
                     </Typography>
+
                     <Typography
                         component={Link}
                         href="/preferences"

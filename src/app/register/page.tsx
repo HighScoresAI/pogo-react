@@ -68,7 +68,7 @@ export default function RegisterPage() {
         minHeight: '100vh',
         width: '100%',
         display: 'flex',
-        bgcolor: '#f5f5f5',
+        bgcolor: '#fff',
         overflow: 'hidden',
       }}
     >
@@ -79,9 +79,11 @@ export default function RegisterPage() {
           display: 'flex',
           flexDirection: 'row',
           bgcolor: '#fff',
-          mx: 2,
-          my: 2,
-          borderRadius: '12px',
+          ml: 2,
+          mr: 4,
+          mt: 0,
+          mb: 4,
+          borderRadius: '0px',
           overflow: 'hidden',
         }}
       >
@@ -96,9 +98,11 @@ export default function RegisterPage() {
             justifyContent: 'center',
             p: 4,
             position: 'relative',
-            borderRadius: '12px 0 0 12px',
+            borderRadius: '24px',
             overflow: 'hidden',
-            height: '100vh',
+            height: 'calc(100vh - 32px)',
+            mx: 2,
+            my: 2,
           }}
         >
           {/* Main Content Container */}
@@ -125,10 +129,10 @@ export default function RegisterPage() {
               sx={{
                 width: 'auto',
                 height: 'auto',
-                maxWidth: '80%',
-                maxHeight: '40%',
+                maxWidth: '70%',
+                maxHeight: '20%',
                 objectFit: 'contain',
-                mb: 4,
+                mb: 3,
               }}
             />
 
@@ -190,8 +194,10 @@ export default function RegisterPage() {
             p: 3,
             bgcolor: '#fff',
             overflow: 'hidden',
-            height: '100vh',
-            borderRadius: '0 12px 12px 0',
+            height: 'calc(100vh - 32px)',
+            borderRadius: '24px',
+            mx: 2,
+            my: 2,
           }}
         >
           <Box sx={{ width: '100%', maxWidth: 380, px: 3 }}>
@@ -233,7 +239,7 @@ export default function RegisterPage() {
                 fontStyle: 'normal',
                 fontWeight: 500,
                 lineHeight: 'normal',
-                borderRadius: 2,
+                borderRadius: 4,
                 py: 2,
                 bgcolor: '#fff',
                 borderColor: '#E0E0E0',
@@ -267,7 +273,7 @@ export default function RegisterPage() {
                 sx={{
                   mb: 2,
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
+                    borderRadius: 4,
                   },
                 }}
               />
@@ -283,7 +289,7 @@ export default function RegisterPage() {
                 sx={{
                   mb: 2,
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
+                    borderRadius: 4,
                   },
                 }}
               />
@@ -314,7 +320,7 @@ export default function RegisterPage() {
                 sx={{
                   py: 1.5,
                   fontWeight: 600,
-                  borderRadius: 2,
+                  borderRadius: 4,
                   bgcolor: '#1976d2',
                   textTransform: 'uppercase',
                   '&:hover': {
@@ -343,11 +349,11 @@ export default function RegisterPage() {
               }}
             >
               By signing up, you agree to our{' '}
-              <Link href="#" color="primary" underline="hover">
+              <Link href="#" sx={{ color: '#00AAF8' }} underline="hover">
                 Terms
               </Link>{' '}
               &{' '}
-              <Link href="#" color="primary" underline="hover">
+              <Link href="#" sx={{ color: '#00AAF8' }} underline="hover">
                 Privacy Policy
               </Link>
             </Typography>
@@ -363,7 +369,7 @@ export default function RegisterPage() {
               }}
             >
               Already have an account?{' '}
-              <Link href="/login" color="primary" underline="hover">
+              <Link href="/login" sx={{ color: '#00AAF8' }} underline="hover">
                 Log in
               </Link>
             </Typography>

@@ -105,46 +105,11 @@ export default function ArtifactDetailPage() {
             });
     }, [sessionId, artifactId]);
 
-    // After session is loaded, check which artifacts are processed (same as session details page)
+    // After session is loaded, check which artifacts are processed and published
     useEffect(() => {
-        async function checkProcessedArtifacts() {
-            if (!session || !session.artifacts) return;
-            const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
-            const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
-
-            // Use session status to determine artifact status
-            const sessionStatus = session.status?.toLowerCase() || 'draft';
-            const isSessionPublished = sessionStatus === 'published';
-            const isSessionProcessed = sessionStatus === 'processed';
-
-            // Check all artifacts
-            for (let idx = 0; idx < session.artifacts.length; idx++) {
-                const artifact = session.artifacts[idx];
-                if (artifact && artifact._id) {
-                    // Check if this specific artifact is vectorized
-                    const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
-
-                    if (isSessionPublished || isArtifactVectorized) {
-                        publishedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
-                    } else {
-                        // For non-published sessions, check if this artifact has processed content
-                        try {
-                            const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`);
-                            const data = await response.json();
-                            if (data.content && data.content.length > 0) {
-                                processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
-                            }
-                        } catch (error) {
-                            console.error('Error checking artifact processing status:', error);
-                        }
-                    }
-                }
-            }
-
-            setProcessed(processedArr);
-            setPublished(publishedArr);
+        if (session && session.artifacts) {
+            refreshArtifactStatuses();
         }
-        checkProcessedArtifacts();
     }, [session]);
 
     // Handle audio duration loading when selected artifact changes
@@ -172,19 +137,24 @@ export default function ArtifactDetailPage() {
         const isProcessed = processed.some(p => p.type === artifact.captureType && p.index === (session?.artifacts?.findIndex(a => a._id === artifact._id) ?? -1));
         const isPublished = published.some(p => p.type === artifact.captureType && p.index === (session?.artifacts?.findIndex(a => a._id === artifact._id) ?? -1));
 
+        // If we know it's published from our state, show published
         if (isPublished) {
             return {
                 status: 'Published',
                 color: '#2E7D32',
                 bgColor: '#E8F5E8'
             };
-        } else if (isProcessed) {
+        }
+        // If it's processed but not published, show processed
+        else if (isProcessed) {
             return {
                 status: 'Processed',
                 color: '#3CA1E8',
                 bgColor: '#E6F4F9'
             };
-        } else {
+        }
+        // Otherwise show draft
+        else {
             return {
                 status: 'Draft',
                 color: '#C97A2B',
@@ -207,6 +177,71 @@ export default function ArtifactDetailPage() {
         return '';
     };
 
+    // Helper function to check if an artifact is published
+    const checkArtifactPublishedStatus = async (artifact: Artifact): Promise<boolean> => {
+        if (!artifact?._id) return false;
+
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) return false;
+
+            const response = await fetch(`${getApiBaseUrl()}/artifacts/${artifact._id}/published-status`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.is_published || data.is_vectorized || false;
+            }
+        } catch (error) {
+            console.warn('Failed to check published status for artifact:', artifact._id, error);
+        }
+
+        return false;
+    };
+
+    // Function to refresh artifact statuses
+    const refreshArtifactStatuses = async () => {
+        if (!session || !session.artifacts) return;
+
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
+
+            const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+            const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+
+            await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
+                if (artifact && artifact._id) {
+                    try {
+                        // Check if artifact has content (processed)
+                        const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const data = await response.json();
+                        if (data.content && data.content.length > 0) {
+                            processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+
+                            // Check if published
+                            const isPublished = await checkArtifactPublishedStatus(artifact);
+                            if (isPublished) {
+                                publishedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Failed to check status for artifact:', artifact._id, error);
+                    }
+                }
+            }));
+
+            setProcessed(processedArr);
+            setPublished(publishedArr);
+            console.log('Artifact statuses refreshed:', { processed: processedArr, published: publishedArr });
+        } catch (error) {
+            console.error('Failed to refresh artifact statuses:', error);
+        }
+    };
+
     // Fetch project name
     useEffect(() => {
         if (session && session.projectId) {
@@ -226,26 +261,62 @@ export default function ArtifactDetailPage() {
             setIsEditingInline(false);
             setIsPolling(false);
             setIsPublished(false);
+            setDescribeLoading(false);
             if (inlineEditor) {
                 inlineEditor.commands.setContent('');
             }
+
+            // Check if this artifact already has processed content
+            const checkExistingContent = async () => {
+                try {
+                    const existingText = await getProcessedText(selectedArtifact);
+                    if (existingText && existingText.trim().length > 0) {
+                        setTranscript(existingText);
+                        setHasProcessedText(true);
+                        if (inlineEditor) {
+                            inlineEditor.commands.setContent(existingText);
+                        }
+                        console.log('Found existing processed content for artifact');
+                    }
+                } catch (error) {
+                    console.error('Error checking existing content:', error);
+                }
+            };
+
+            checkExistingContent();
         }
     }, [selectedArtifact, inlineEditor]);
 
     // Poll for processed text when artifact is being processed
     useEffect(() => {
         let pollInterval: NodeJS.Timeout;
+        let timeoutId: NodeJS.Timeout;
 
-        if (selectedArtifact && !hasProcessedText && isPolling) {
-            pollInterval = setInterval(async () => {
-                const processedText = await getProcessedText(selectedArtifact);
-                if (processedText) {
-                    setTranscript(processedText);
-                    if (inlineEditor) {
-                        inlineEditor.commands.setContent(processedText);
-                    }
-                    setHasProcessedText(true);
+        if (selectedArtifact && isPolling) {
+            // Set a timeout to stop polling after 5 minutes (300 seconds)
+            timeoutId = setTimeout(() => {
+                if (isPolling) {
+                    console.log('Polling timeout reached, stopping...');
                     setIsPolling(false);
+                    setTranscript('Processing timeout. Please try again or contact support.');
+                    setHasProcessedText(false);
+                }
+            }, 300000); // 5 minutes
+
+            pollInterval = setInterval(async () => {
+                try {
+                    const processedText = await getProcessedText(selectedArtifact);
+                    if (processedText && processedText.trim().length > 0) {
+                        setTranscript(processedText);
+                        if (inlineEditor) {
+                            inlineEditor.commands.setContent(processedText);
+                        }
+                        setHasProcessedText(true);
+                        setIsPolling(false);
+                        console.log('Artifact processing completed, transcript updated');
+                    }
+                } catch (error) {
+                    console.error('Error during polling:', error);
                 }
             }, 2000); // Check every 2 seconds
         }
@@ -254,8 +325,11 @@ export default function ArtifactDetailPage() {
             if (pollInterval) {
                 clearInterval(pollInterval);
             }
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         };
-    }, [selectedArtifact, hasProcessedText, isPolling, inlineEditor]);
+    }, [selectedArtifact, isPolling, inlineEditor]);
 
     const handleEdit = () => {
         setInlineEditorContent(transcript);
@@ -313,12 +387,14 @@ export default function ArtifactDetailPage() {
 
             // Set a temporary message while processing
             setTranscript('Processing artifact... Please wait.');
+            console.log('Artifact processing started, polling will begin...');
 
             // The polling effect will automatically check for processed text
         } catch (error) {
             console.error('Error processing artifact:', error);
             setTranscript('Error processing artifact. Please try again.');
             setIsPolling(false);
+            setHasProcessedText(false);
         } finally {
             setDescribeLoading(false);
         }
@@ -495,6 +571,9 @@ export default function ArtifactDetailPage() {
             setIsPublished(true);
             console.log('Artifact published successfully');
 
+            // Show success message
+            alert(`Artifact published successfully! ${options.blog ? 'Blog post created.' : ''} ${options.chatbot ? 'Chatbot updated.' : ''}`);
+
             // Log the artifact publish activity
             try {
                 let description = 'Artifact published';
@@ -524,42 +603,69 @@ export default function ArtifactDetailPage() {
 
             // Refresh the processed and published status after publishing
             if (session && session.artifacts) {
-                const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
-                const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+                try {
+                    const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+                    const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
 
-                await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
-                    if (artifact && artifact._id) {
-                        try {
-                            const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`, {
-                                headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            const data = await response.json();
-                            if (data.content && data.content.length > 0) {
-                                processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+                    await Promise.all(session.artifacts.map(async (artifact: Artifact, idx: number) => {
+                        if (artifact && artifact._id) {
+                            try {
+                                // Check if artifact has content (processed)
+                                const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                const data = await response.json();
+                                if (data.content && data.content.length > 0) {
+                                    processedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
 
-                                // Check if published (vectorized for chatbot or logged as published)
-                                try {
-                                    const publishedResponse = await fetch(`${getApiBaseUrl()}/artifacts/${artifact._id}/published-status`, {
-                                        headers: { 'Authorization': `Bearer ${token}` }
-                                    });
-                                    const publishedData = await publishedResponse.json();
-                                    if (publishedData.is_published || publishedData.is_vectorized) {
+                                    // Check if published using our helper function
+                                    const isPublished = await checkArtifactPublishedStatus(artifact);
+                                    if (isPublished) {
                                         publishedArr.push({ type: artifact.captureType as 'audio' | 'screenshot', index: idx });
+                                        console.log(`Artifact ${artifact._id} is published`);
                                     }
-                                } catch { }
+                                }
+                            } catch (contentError) {
+                                console.warn('Failed to check content for artifact:', artifact._id, contentError);
+                                // Don't fail the entire operation for content check failures
                             }
-                        } catch { }
-                    }
-                }));
-                setProcessed(processedArr);
-                setPublished(publishedArr);
+                        }
+                    }));
+
+                    console.log('Updated processed array:', processedArr);
+                    console.log('Updated published array:', publishedArr);
+
+                    setProcessed(processedArr);
+                    setPublished(publishedArr);
+                } catch (refreshError) {
+                    console.warn('Failed to refresh artifact statuses after publishing:', refreshError);
+                    // Don't fail the publish operation for status refresh failures
+                }
             }
+
+            // Force a refresh of the artifact statuses
+            await refreshArtifactStatuses();
 
             // You could add a success notification here
         } catch (error) {
             console.error('Error publishing artifact:', error);
+
+            // Provide more specific error messages
+            let errorMessage = 'Unknown error occurred';
+            if (error instanceof Error) {
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Network error. Please check your connection and try again.';
+                } else if (error.message.includes('401') || error.message.includes('403')) {
+                    errorMessage = 'Authentication error. Please log in again.';
+                } else if (error.message.includes('500')) {
+                    errorMessage = 'Server error. Please try again later.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+
             // Show error to user
-            alert(`Failed to publish artifact: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+            alert(`Failed to publish artifact: ${errorMessage}`);
         } finally {
             setPublishLoading(false);
         }
