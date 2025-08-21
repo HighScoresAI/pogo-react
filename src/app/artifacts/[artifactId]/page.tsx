@@ -21,7 +21,7 @@ import Link from '@mui/material/Link';
 import PublishSessionModal from '../../../components/PublishSessionModal';
 import ActivityLogList from '../../../components/ActivityLogList';
 import { ApiClient, getApiBaseUrl } from '../../../lib/api';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const lowlight = createLowlight();
