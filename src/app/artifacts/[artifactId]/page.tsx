@@ -21,6 +21,8 @@ import Link from '@mui/material/Link';
 import PublishSessionModal from '../../../components/PublishSessionModal';
 import ActivityLogList from '../../../components/ActivityLogList';
 import { ApiClient, getApiBaseUrl } from '../../../lib/api';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const lowlight = createLowlight();
 
@@ -196,8 +198,198 @@ export default function ArtifactDetailPage() {
         } catch (error) {
             console.warn('Failed to check published status for artifact:', artifact._id, error);
         }
-
         return false;
+    };
+
+    // PDF Download function for artifact
+    const handleDownloadArtifactPDF = async () => {
+        if (!selectedArtifact || !hasProcessedText) {
+            alert('No content to download. Please process some content first.');
+            return;
+        }
+
+        try {
+            // Get the processed text for the selected artifact
+            const processedText = await getProcessedText(selectedArtifact);
+
+            if (!processedText || processedText.trim() === '') {
+                alert('No processed content to download. Please process the artifact first.');
+                return;
+            }
+
+            // Create PDF directly with jsPDF
+            const pdf = new jsPDF('p', 'mm', 'a4');
+
+            // Set initial position
+            let yPosition = 20;
+
+            // Add header with logo-like styling
+            pdf.setFillColor(60, 161, 232); // #3CA1E8
+            pdf.rect(0, 0, 210, 25, 'F');
+
+            // Add title in header
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(20);
+            const title = `Artifact: ${selectedArtifact.captureType?.toUpperCase()} - ${selectedArtifact.captureName || 'Unknown'}`;
+            pdf.text(title, 20, 15);
+
+            // Reset text color for content
+            pdf.setTextColor(0, 0, 0);
+
+            // Add artifact metadata
+            yPosition = 35;
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Artifact Details:', 20, yPosition);
+
+            yPosition += 8;
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(`Artifact ID: ${selectedArtifact._id || 'Unknown'}`, 25, yPosition);
+            yPosition += 6;
+            pdf.text(`Session: ${session?.sessionName || session?.sessionId || 'Unknown'}`, 25, yPosition);
+            yPosition += 6;
+            pdf.text(`Type: ${selectedArtifact.captureType || 'Unknown'}`, 25, yPosition);
+            yPosition += 6;
+            pdf.text(`Created: ${selectedArtifact.createdAt ? new Date(selectedArtifact.createdAt).toLocaleString() : 'Unknown'}`, 25, yPosition);
+            yPosition += 6;
+            pdf.text(`Project: ${session?.projectId || 'Unknown'}`, 25, yPosition);
+
+            // Add separator line
+            yPosition += 10;
+            pdf.setDrawColor(60, 161, 232);
+            pdf.setLineWidth(1);
+            pdf.line(20, yPosition, 190, yPosition);
+
+            // Add content section header
+            yPosition += 15;
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(16);
+            pdf.setTextColor(60, 161, 232);
+            pdf.text('Processed Content', 20, yPosition);
+
+            // Reset text color for content
+            yPosition += 8;
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
+
+            // Process the content with better formatting
+            const lines = processedText.split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                if (!line) {
+                    yPosition += 4; // Small spacing for empty lines
+                    continue;
+                }
+
+                // Check if this is a heading (starts with ###)
+                if (line.startsWith('###')) {
+                    // New page if needed
+                    if (yPosition > 250) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    // Heading styling
+                    yPosition += 8;
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(60, 161, 232);
+                    pdf.text(line.replace('###', '').trim(), 20, yPosition);
+                    yPosition += 8;
+                    pdf.setTextColor(0, 0, 0);
+                    pdf.setFontSize(11);
+                    pdf.setFont('helvetica', 'normal');
+                } else if (line.startsWith('**') && line.endsWith('**')) {
+                    // Bold text styling
+                    if (yPosition > 250) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    yPosition += 6;
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(11);
+                    pdf.text(line.replace(/\*\*/g, ''), 25, yPosition);
+                    yPosition += 6;
+                    pdf.setFont('helvetica', 'normal');
+                } else {
+                    // Regular text with word wrapping
+                    if (yPosition > 250) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    // Word wrapping for long lines
+                    const maxWidth = 170;
+                    const words = line.split(' ');
+                    let currentLine = '';
+
+                    for (let j = 0; j < words.length; j++) {
+                        const word = words[j];
+                        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                        const testWidth = pdf.getTextWidth(testLine);
+
+                        if (testWidth > maxWidth && currentLine !== '') {
+                            pdf.text(currentLine, 25, yPosition);
+                            yPosition += 6;
+                            currentLine = word;
+
+                            if (yPosition > 250) {
+                                pdf.addPage();
+                                yPosition = 20;
+                            }
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+
+                    if (currentLine) {
+                        pdf.text(currentLine, 25, yPosition);
+                        yPosition += 6;
+                    }
+                }
+            }
+
+            // Add footer with page numbers
+            const pageCount = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                pdf.setPage(i);
+                pdf.setFontSize(10);
+                pdf.setTextColor(128, 128, 128);
+                pdf.text(`Page ${i} of ${pageCount}`, 20, 280);
+                pdf.text(`Generated on: ${new Date().toLocaleString()}`, 120, 280);
+            }
+
+            // Download the PDF
+            const fileName = `artifact_${selectedArtifact.captureType}_${selectedArtifact.captureName || 'unknown'}_${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(fileName);
+
+            // Log the download activity
+            try {
+                await ApiClient.logActivity({
+                    activity_type: 'artifact_downloaded',
+                    description: 'Artifact content downloaded as PDF',
+                    session_id: sessionId as string,
+                    artifact_id: selectedArtifact._id,
+                    project_id: session?.projectId,
+                    metadata: {
+                        download_type: 'pdf',
+                        content_length: processedText.length,
+                        artifact_type: selectedArtifact.captureType
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to log download activity:', logError);
+            }
+
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Failed to generate PDF. Please try again.');
+        }
     };
 
     // Function to refresh artifact statuses
@@ -508,7 +700,7 @@ export default function ArtifactDetailPage() {
         return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
     };
 
-    const handlePublishArtifact = async (options: { chatbot: boolean; blog: boolean }) => {
+    const handlePublishArtifact = async (options: { chatbot: boolean; blog: boolean; selectedArtifactIds?: string[] }) => {
         if (!selectedArtifact) {
             console.error('No artifact selected for publishing');
             return;
@@ -534,6 +726,7 @@ export default function ArtifactDetailPage() {
                 body: JSON.stringify({
                     publishToChatbot: options.chatbot,
                     publishToBlog: options.blog,
+                    selectedArtifactIds: [selectedArtifact._id], // Pass the current artifact ID
                 }),
             });
 
@@ -1011,8 +1204,35 @@ export default function ArtifactDetailPage() {
                         {/* Transcription / Description Section */}
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, pl: 2 }}>
                             <Typography variant="h6" fontWeight={600}>Transcription / Description</Typography>
-                            {/* Cloud icon */}
-                            <img src="/cloud.svg" alt="Cloud Icon" style={{ width: 24, height: 24, marginRight: 16 }} />
+                            {/* Cloud download button */}
+                            <Button
+                                onClick={handleDownloadArtifactPDF}
+                                disabled={!hasProcessedText}
+                                sx={{
+                                    minWidth: 'auto',
+                                    p: 1,
+                                    borderRadius: '50%',
+                                    bgcolor: 'transparent',
+                                    '&:hover': {
+                                        bgcolor: 'rgba(60, 161, 232, 0.1)',
+                                    },
+                                    '&:disabled': {
+                                        opacity: 0.5,
+                                        cursor: 'not-allowed'
+                                    }
+                                }}
+                                title="Download PDF"
+                            >
+                                <img
+                                    src="/cloud.svg"
+                                    alt="Download PDF"
+                                    style={{
+                                        width: 24,
+                                        height: 24,
+                                        filter: !hasProcessedText ? 'grayscale(100%)' : 'none'
+                                    }}
+                                />
+                            </Button>
                         </Box>
                         <Box sx={{ mb: 4, borderRadius: 3, boxShadow: 1, overflow: 'hidden', bgcolor: '#fff' }}>
                             {!hasProcessedText ? (
@@ -1264,6 +1484,7 @@ export default function ArtifactDetailPage() {
                 onClose={() => setShowPublishModal(false)}
                 onPublish={handlePublishArtifact}
                 loading={publishLoading}
+                selectedArtifactIds={selectedArtifact ? [selectedArtifact._id] : []}
             />
 
             {/* Delete Confirmation Dialog */}

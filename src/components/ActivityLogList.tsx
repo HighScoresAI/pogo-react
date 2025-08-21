@@ -203,9 +203,21 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
     }
 
     return (
-        <Box>
+        <Box sx={{
+            width: '100%',
+            overflow: 'visible',
+            position: 'relative',
+            zIndex: 1,
+            minHeight: 200
+        }}>
             {/* Header with search */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: title ? 'space-between' : 'flex-end',
+                mb: 3,
+                width: '100%'
+            }}>
                 {title && (
                     <Typography variant="h5" fontWeight={600} sx={{ color: '#222' }}>
                         {title}
@@ -220,6 +232,8 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                     px: 2,
                     py: 1,
                     minWidth: 200,
+                    maxWidth: 300,
+                    flexShrink: 0,
                     boxShadow: 'none'
                 }}>
                     <Search sx={{ color: '#B0B8C1', fontSize: 20, mr: 1 }} />
@@ -240,7 +254,8 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                     width: '100%',
                     borderRadius: 2,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    bgcolor: '#fff'
+                    bgcolor: '#fff',
+                    overflow: 'visible'
                 }}>
                     <Box sx={{ textAlign: 'center', py: 8 }}>
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -259,11 +274,12 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                 // Table with headers - only when there's data
                 <Paper sx={{
                     width: '100%',
-                    overflow: 'hidden',
+                    overflow: 'visible',
                     borderRadius: 2,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    bgcolor: '#fff'
                 }}>
-                    <TableContainer sx={{ maxHeight: 600 }}>
+                    <TableContainer sx={{ maxHeight: 600, overflow: 'visible' }}>
                         <Table stickyHeader>
                             <TableHead>
                                 <TableRow sx={{ bgcolor: '#fafafa' }}>

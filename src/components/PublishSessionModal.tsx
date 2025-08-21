@@ -21,8 +21,9 @@ import {
 interface PublishSessionModalProps {
     open: boolean;
     onClose: () => void;
-    onPublish: (options: { chatbot: boolean; blog: boolean }) => void;
+    onPublish: (options: { chatbot: boolean; blog: boolean; selectedArtifactIds?: string[] }) => void;
     loading?: boolean;
+    selectedArtifactIds?: string[]; // IDs of artifacts selected for publishing
 }
 
 export default function PublishSessionModal({
@@ -30,6 +31,7 @@ export default function PublishSessionModal({
     onClose,
     onPublish,
     loading = false,
+    selectedArtifactIds = [],
 }: PublishSessionModalProps) {
     const [selectedOptions, setSelectedOptions] = useState({
         chatbot: true,
@@ -44,7 +46,15 @@ export default function PublishSessionModal({
     };
 
     const handlePublish = () => {
-        onPublish(selectedOptions);
+        console.log('PublishSessionModal - Publishing with options:', {
+            ...selectedOptions,
+            selectedArtifactIds: selectedArtifactIds
+        });
+
+        onPublish({
+            ...selectedOptions,
+            selectedArtifactIds: selectedArtifactIds
+        });
     };
 
     const handleClose = () => {

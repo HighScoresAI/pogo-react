@@ -32,6 +32,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import PauseIcon from '@mui/icons-material/Pause';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 console.log('testValue from lib/test:', testValue);
 
@@ -194,6 +196,7 @@ export default function SessionDetailPage() {
     // Selection mode for images
     const [selectMode, setSelectMode] = useState(false);
     const [selectedImages, setSelectedImages] = useState<number[]>([]);
+    const [selectedAudioArtifacts, setSelectedAudioArtifacts] = useState<string[]>([]);
     // Confirmation dialog for deleting images
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     // Add state for transcript and loading
@@ -310,15 +313,33 @@ export default function SessionDetailPage() {
         if (sessionId) fetchSession();
     }, [sessionId]);
 
+    // Fetch project name
     useEffect(() => {
-        if (session && session.projectId) {
-            ApiClient.get(`/projects/${session.projectId}`)
-                .then((data: any) => {
-                    setProjectName(data.name || data.projectName || '');
-                })
-                .catch(() => setProjectName(''));
+        const fetchProjectName = async () => {
+            if (session?.projectId) {
+                try {
+                    const response = await ApiClient.get(`/projects/${session.projectId}`) as any;
+                    if (response.name) {
+                        setProjectName(response.name);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch project name:', error);
+                }
+            }
+        };
+
+        fetchProjectName();
+    }, [session?.projectId]);
+
+    // Initialize audio artifacts as always selected
+    useEffect(() => {
+        if (session?.artifacts) {
+            const audioArtifacts = session.artifacts
+                .filter((artifact: any) => artifact.captureType === 'audio')
+                .map((artifact: any) => artifact._id);
+            setSelectedAudioArtifacts(audioArtifacts);
         }
-    }, [session]);
+    }, [session?.artifacts]);
 
     // After session is loaded, check which artifacts are processed and published
     useEffect(() => {
@@ -952,17 +973,46 @@ export default function SessionDetailPage() {
     const handleDescribe = async () => {
         setDescribeLoading(true);
         setIsPublished(false);
+
+        // Get selected screenshot artifacts
         const screenshotArtifacts = session.artifacts.filter((a: any) => a.captureType === 'screenshot');
-        const selectedArtifacts = selectedImages.map(idx => screenshotArtifacts[idx]);
+        const selectedScreenshotArtifacts = selectedImages.map(idx => screenshotArtifacts[idx]);
+
+        // Get selected audio artifacts (always selected)
+        const audioArtifacts = session.artifacts.filter((a: any) => a.captureType === 'audio');
+        const filteredAudioArtifacts = audioArtifacts.filter((a: any) => selectedAudioArtifacts.includes(a._id));
+
+        // Combine all selected artifacts
+        const allSelectedArtifacts = [...selectedScreenshotArtifacts, ...filteredAudioArtifacts];
+
+        if (allSelectedArtifacts.length === 0) {
+            setDescribeLoading(false);
+            return;
+        }
+
         // 1. Process each selected artifact
-        await Promise.all(selectedArtifacts.map(artifact =>
+        await Promise.all(allSelectedArtifacts.map(artifact =>
             ApiClient.post(`/artifacts/${artifact._id}/process`, { priority: 'medium' })
         ));
+
         // 2. Fetch processed text for each
-        const processedTexts = await Promise.all(selectedArtifacts.map(async artifact => {
+        const processedTexts = await Promise.all(allSelectedArtifacts.map(async (artifact, index) => {
             const res = await ApiClient.get(`/artifacts/artifact-updates/latest/${artifact._id}`) as any;
-            return res.content || '';
+            const content = res.content || '';
+
+            // Add label based on artifact type and index
+            let label = '';
+            if (artifact.captureType === 'screenshot') {
+                label = `Image ${index + 1}:`;
+            } else if (artifact.captureType === 'audio') {
+                label = `Audio ${index + 1}:`;
+            } else {
+                label = `Artifact ${index + 1}:`;
+            }
+
+            return `${label}\n${content}`;
         }));
+
         // 3. Combine and display
         setTranscript(processedTexts.join('\n\n'));
         setHasTranscript(true);
@@ -1034,17 +1084,224 @@ export default function SessionDetailPage() {
         setInlineEditorContent('');
     };
 
+    // PDF Download function
+    const handleDownloadPDF = async () => {
+        if (!transcript || transcript.trim() === '') {
+            alert('No content to download. Please process some content first.');
+            return;
+        }
+
+        try {
+            // Create PDF directly with jsPDF
+            const pdf = new jsPDF('p', 'mm', 'a4');
+
+            // Set initial position
+            let yPosition = 20;
+
+            // Add header with logo-like styling
+            pdf.setFillColor(60, 161, 232); // #3CA1E8
+            pdf.rect(0, 0, 210, 25, 'F');
+
+            // Add title in header
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(20);
+            const title = `Session: ${session?.sessionName || session?.sessionId || 'Unknown Session'}`;
+            pdf.text(title, 20, 15);
+
+            // Reset text color for content
+            pdf.setTextColor(0, 0, 0);
+
+            // Add session metadata
+            yPosition = 35;
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Session Details:', 20, yPosition);
+
+            yPosition += 8;
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(`Session ID: ${session?.sessionId || 'Unknown'}`, 25, yPosition);
+            yPosition += 6;
+            pdf.text(`Created: ${session?.createdByName || 'Unknown'}, ${session?.createdAt ? new Date(session.createdAt).toLocaleString() : 'Unknown'}`, 25, yPosition);
+            yPosition += 6;
+            pdf.text(`Project: ${projectName || 'Unknown'}`, 25, yPosition);
+
+            // Add separator line
+            yPosition += 10;
+            pdf.setDrawColor(60, 161, 232);
+            pdf.setLineWidth(1);
+            pdf.line(20, yPosition, 190, yPosition);
+
+            // Add content section header
+            yPosition += 15;
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(16);
+            pdf.setTextColor(60, 161, 232);
+            pdf.text('Transcription / Description', 20, yPosition);
+
+            // Reset text color for content
+            yPosition += 8;
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
+
+            // Process the transcript content with better formatting
+            const lines = transcript.split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                if (!line) {
+                    yPosition += 4; // Small spacing for empty lines
+                    continue;
+                }
+
+                // Check if this is a heading (starts with ###)
+                if (line.startsWith('###')) {
+                    // New page if needed
+                    if (yPosition > 250) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    // Heading styling
+                    yPosition += 8;
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(60, 161, 232);
+                    pdf.text(line.replace('###', '').trim(), 20, yPosition);
+                    yPosition += 8;
+                    pdf.setTextColor(0, 0, 0);
+                    pdf.setFontSize(11);
+                    pdf.setFont('helvetica', 'normal');
+                } else if (line.startsWith('**') && line.endsWith('**')) {
+                    // Bold text styling
+                    if (yPosition > 250) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    yPosition += 6;
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(11);
+                    pdf.text(line.replace(/\*\*/g, ''), 25, yPosition);
+                    yPosition += 6;
+                    pdf.setFont('helvetica', 'normal');
+                } else {
+                    // Regular text with word wrapping
+                    if (yPosition > 250) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    // Word wrapping for long lines
+                    const maxWidth = 170;
+                    const words = line.split(' ');
+                    let currentLine = '';
+
+                    for (let j = 0; j < words.length; j++) {
+                        const word = words[j];
+                        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                        const testWidth = pdf.getTextWidth(testLine);
+
+                        if (testWidth > maxWidth && currentLine !== '') {
+                            pdf.text(currentLine, 25, yPosition);
+                            yPosition += 6;
+                            currentLine = word;
+
+                            if (yPosition > 250) {
+                                pdf.addPage();
+                                yPosition = 20;
+                            }
+                        } else {
+                            currentLine = testLine;
+                        }
+                    }
+
+                    if (currentLine) {
+                        pdf.text(currentLine, 25, yPosition);
+                        yPosition += 6;
+                    }
+                }
+            }
+
+            // Add footer with page numbers
+            const pageCount = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                pdf.setPage(i);
+                pdf.setFontSize(10);
+                pdf.setTextColor(128, 128, 128);
+                pdf.text(`Page ${i} of ${pageCount}`, 20, 280);
+                pdf.text(`Generated on: ${new Date().toLocaleString()}`, 120, 280);
+            }
+
+            // Download the PDF
+            const fileName = `session_${session?.sessionName || session?.sessionId || 'unknown'}_${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(fileName);
+
+            // Log the download activity
+            try {
+                await ApiClient.logActivity({
+                    activity_type: 'session_downloaded',
+                    description: 'Session content downloaded as PDF',
+                    session_id: sessionId as string,
+                    project_id: session?.projectId,
+                    metadata: {
+                        download_type: 'pdf',
+                        content_length: transcript.length
+                    }
+                });
+            } catch (logError) {
+                console.error('Failed to log download activity:', logError);
+            }
+
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Failed to generate PDF. Please try again.');
+        }
+    };
+
     const handleArtifactClick = (artifactId: string) => {
         router.push(`/artifacts/${artifactId}?sessionId=${sessionId}`);
     };
 
-    const handlePublishSession = async (options: { chatbot: boolean; blog: boolean }) => {
+    const handlePublishSession = async (options: { chatbot: boolean; blog: boolean; selectedArtifactIds?: string[] }) => {
         setPublishLoading(true);
         try {
+            // Get the selected artifact IDs from the current selection state
+            const selectedArtifactIds: string[] = [];
+
+            // Add selected image artifacts
+            selectedImages.forEach(imageIndex => {
+                if (artifacts[imageIndex] && artifacts[imageIndex]._id) {
+                    selectedArtifactIds.push(artifacts[imageIndex]._id);
+                }
+            });
+
+            // Add selected audio artifacts
+            selectedAudioArtifacts.forEach(audioId => {
+                if (audioId) {
+                    selectedArtifactIds.push(audioId);
+                }
+            });
+
+            // If no specific artifacts are selected, use all processed artifacts (backward compatibility)
+            const finalSelectedArtifactIds = selectedArtifactIds.length > 0 ? selectedArtifactIds : undefined;
+
+            // Debug logging
+            console.log('Publishing session with selected artifacts:', {
+                selectedImages,
+                selectedAudioArtifacts,
+                selectedArtifactIds,
+                finalSelectedArtifactIds,
+                totalArtifacts: artifacts.length
+            });
+
             // Call the API to publish the session
             await ApiClient.post(`/sessions/${sessionId}/publish`, {
                 publishToChatbot: options.chatbot,
                 publishToBlog: options.blog,
+                selectedArtifactIds: finalSelectedArtifactIds,
             });
             setShowPublishModal(false);
             setIsPublished(true);
@@ -1428,8 +1685,35 @@ export default function SessionDetailPage() {
                                 <Typography variant="h6" fontWeight={600} sx={{ textAlign: 'left' }}>
                                     Transcription / Description
                                 </Typography>
-                                {/* Cloud icon - actual image */}
-                                <img src="/cloud.svg" alt="Cloud Icon" style={{ width: 24, height: 24, marginRight: 16 }} />
+                                {/* Cloud download button */}
+                                <Button
+                                    onClick={handleDownloadPDF}
+                                    disabled={!hasTranscript || !transcript || transcript.trim() === ''}
+                                    sx={{
+                                        minWidth: 'auto',
+                                        p: 1,
+                                        borderRadius: '50%',
+                                        bgcolor: 'transparent',
+                                        '&:hover': {
+                                            bgcolor: 'rgba(60, 161, 232, 0.1)',
+                                        },
+                                        '&:disabled': {
+                                            opacity: 0.5,
+                                            cursor: 'not-allowed'
+                                        }
+                                    }}
+                                    title="Download PDF"
+                                >
+                                    <img
+                                        src="/cloud.svg"
+                                        alt="Download PDF"
+                                        style={{
+                                            width: 24,
+                                            height: 24,
+                                            filter: !hasTranscript || !transcript || transcript.trim() === '' ? 'grayscale(100%)' : 'none'
+                                        }}
+                                    />
+                                </Button>
                             </Box>
                             {!hasTranscript ? (
                                 <Box sx={{ border: '1px solid #E5E5EA', borderRadius: '16px', background: '#fff', px: 0, py: 4, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1439,12 +1723,15 @@ export default function SessionDetailPage() {
                                     <Typography sx={{ mb: 3, color: '#222', textAlign: 'center', fontSize: 17, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '90%' }}>
                                         Transcribe or Describe your session - edit or refine it before publishing.
                                     </Typography>
+                                    <Typography sx={{ mb: 3, color: '#666', textAlign: 'center', fontSize: 14, fontStyle: 'italic' }}>
+                                        Audio artifacts are automatically selected • Select images to include them
+                                    </Typography>
                                     <Button
                                         variant="contained"
                                         color="primary"
                                         sx={{ fontWeight: 600, fontSize: 16, borderRadius: 2, px: 4, py: 1.5, minWidth: 140, height: 48, '&:hover': { bgcolor: '#0095d5' } }}
                                         onClick={handleDescribe}
-                                        disabled={describeLoading || selectedImages.length === 0}
+                                        disabled={describeLoading || (selectedImages.length === 0 && selectedAudioArtifacts.length === 0)}
                                     >
                                         {describeLoading ? 'Processing...' : 'Describe'}
                                     </Button>
@@ -1696,6 +1983,25 @@ export default function SessionDetailPage() {
                 onClose={() => setShowPublishModal(false)}
                 onPublish={handlePublishSession}
                 loading={publishLoading}
+                selectedArtifactIds={(() => {
+                    const selectedIds: string[] = [];
+
+                    // Add selected image artifacts
+                    selectedImages.forEach(imageIndex => {
+                        if (artifacts[imageIndex] && artifacts[imageIndex]._id) {
+                            selectedIds.push(artifacts[imageIndex]._id);
+                        }
+                    });
+
+                    // Add selected audio artifacts
+                    selectedAudioArtifacts.forEach(audioId => {
+                        if (audioId) {
+                            selectedIds.push(audioId);
+                        }
+                    });
+
+                    return selectedIds;
+                })()}
             />
         </>
     );

@@ -293,8 +293,8 @@ export default function ProjectDetailsStatic() {
             {/* Purple Banner */}
             <Box sx={{ width: '100%', height: 160, background: 'url(/purple-bg.png) center/cover no-repeat', mb: { xs: 2, md: 4 } }} />
             {/* Centered Main Content */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', ml: { xs: 0, md: 8 } }}>
-                <Box sx={{ px: { xs: 2, md: 6 }, pt: 4, maxWidth: 1400, width: '100%' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', ml: { xs: 0, md: 8 }, overflow: 'visible' }}>
+                <Box sx={{ px: { xs: 2, md: 6 }, pt: 4, maxWidth: 1400, width: '100%', overflow: 'visible' }}>
                     {/* Breadcrumb */}
                     <Breadcrumbs sx={{ mb: 1 }} aria-label="breadcrumb">
                         <Link underline="hover" color="inherit" href="/dashboard">Dashboard</Link>
@@ -606,11 +606,18 @@ export default function ProjectDetailsStatic() {
                     </Box>
 
                     {/* Activity Logs Section */}
-                    <Box sx={{ maxWidth: 1020, width: '100%', mt: 2 }}>
-                        <Typography variant="h6" fontWeight={600} sx={{ mb: -5 }}>Activity Logs</Typography>
+                    <Box sx={{
+                        maxWidth: 1020,
+                        width: '100%',
+                        mt: 4,
+                        mb: 8,
+                        pb: 4,
+                        overflow: 'visible'
+                    }}>
                         <ActivityLogList
                             type="project"
                             id={projectId as string}
+                            title="Activity Logs"
                         />
                     </Box>
                 </Box>
