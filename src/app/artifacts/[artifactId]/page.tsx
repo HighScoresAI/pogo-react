@@ -107,6 +107,25 @@ export default function ArtifactDetailPage() {
             });
     }, [sessionId, artifactId]);
 
+    // Function to refresh session data
+    const refreshSessionData = async () => {
+        if (!sessionId) return;
+
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/sessions/${sessionId}`);
+            const data = await response.json();
+            console.log('Refreshed session data:', data);
+            setSession(data);
+            setArtifacts(data.artifacts || []);
+
+            // Update selected artifact with fresh data
+            const found = data.artifacts?.find((a: Artifact) => a._id === artifactId);
+            setSelectedArtifact(found || null);
+        } catch (error) {
+            console.error('Failed to refresh session data:', error);
+        }
+    };
+
     // After session is loaded, check which artifacts are processed and published
     useEffect(() => {
         if (session && session.artifacts) {
@@ -838,6 +857,9 @@ export default function ArtifactDetailPage() {
 
             // Force a refresh of the artifact statuses
             await refreshArtifactStatuses();
+
+            // Refresh session data to get updated artifact published fields
+            await refreshSessionData();
 
             // You could add a success notification here
         } catch (error) {

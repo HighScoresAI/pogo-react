@@ -13,6 +13,10 @@ export interface Artifact {
     duration?: number;
     status?: 'pending' | 'processing' | 'completed' | 'failed';
     processedAt?: string;
+    published?: boolean;
+    publishedAt?: string;
+    publish_to_blog?: boolean;
+    publish_to_chatbot?: boolean;
     segments?: Array<{
         start: number;
         end: number;

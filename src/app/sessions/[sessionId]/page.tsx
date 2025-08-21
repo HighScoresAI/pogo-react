@@ -296,20 +296,22 @@ export default function SessionDetailPage() {
 
     }, [showDocumentEditor, editorArtifactId]);
 
-    useEffect(() => {
-        async function fetchSession() {
-            setLoading(true);
-            try {
-                const data = await ApiClient.get(`/sessions/${sessionId}`) as Session;
-                console.log('Fetched session:', data);
-                setSession(data);
-            } catch (err) {
-                console.error('Error fetching session:', err);
-                setSession(null);
-            } finally {
-                setLoading(false);
-            }
+    // Function to fetch session data
+    const fetchSession = async () => {
+        setLoading(true);
+        try {
+            const data = await ApiClient.get(`/sessions/${sessionId}`) as Session;
+            console.log('Fetched session:', data);
+            setSession(data);
+        } catch (err) {
+            console.error('Error fetching session:', err);
+            setSession(null);
+        } finally {
+            setLoading(false);
         }
+    };
+
+    useEffect(() => {
         if (sessionId) fetchSession();
     }, [sessionId]);
 
@@ -341,94 +343,125 @@ export default function SessionDetailPage() {
         }
     }, [session?.artifacts]);
 
+    // Function to refresh artifact statuses
+    const refreshArtifactStatuses = async () => {
+        if (!session || !session.artifacts) return;
+
+        console.log('Refreshing artifact statuses for session:', session.sessionId);
+        console.log('Session artifacts:', session.artifacts);
+
+        const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+        const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
+
+        // Use session status to determine artifact status
+        const sessionStatus = session.status?.toLowerCase() || 'draft';
+        const isSessionPublished = sessionStatus === 'published';
+        const isSessionProcessed = sessionStatus === 'processed';
+
+        // Check audio files
+        if (session.audioFiles && session.audioFiles.length > 0) {
+            for (let idx = 0; idx < session.audioFiles.length; idx++) {
+                const url = session.audioFiles[idx];
+                // Extract filename from both URLs for comparison
+                const audioFilename = url.split('/').pop();
+                const artifact = session.artifacts.find((a: any) => {
+                    if (a.captureType === 'audio') {
+                        const artifactFilename = a.url.split('/').pop();
+                        return artifactFilename === audioFilename;
+                    }
+                    return false;
+                });
+
+                if (artifact && artifact._id) {
+                    // Check if this specific artifact is vectorized
+                    const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
+
+                    // Check if this specific artifact is published
+                    const isArtifactPublished = artifact.published === true;
+
+                    console.log(`Audio artifact ${artifact._id}:`, {
+                        isSessionPublished,
+                        isArtifactVectorized,
+                        isArtifactPublished,
+                        artifactPublished: artifact.published,
+                        artifactData: artifact
+                    });
+
+                    if (isSessionPublished || isArtifactVectorized || isArtifactPublished) {
+                        publishedArr.push({ type: 'audio', index: idx });
+                        console.log(`Audio artifact ${artifact._id} marked as published`);
+                    } else {
+                        // For non-published sessions, check if this artifact has processed content
+                        try {
+                            const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`);
+                            const data = await response.json();
+                            if (data.content && data.content.length > 0) {
+                                processedArr.push({ type: 'audio', index: idx });
+                            }
+                        } catch (error) {
+                            console.error('Error checking artifact processing status:', error);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check screenshots
+        if (session.screenshots && session.screenshots.length > 0) {
+            for (let idx = 0; idx < session.screenshots.length; idx++) {
+                const url = session.screenshots[idx];
+                // Extract filename from both URLs for comparison
+                const screenshotFilename = url.split('/').pop();
+                const artifact = session.artifacts.find((a: any) => {
+                    if (a.captureType === 'screenshot') {
+                        const artifactFilename = a.url.split('/').pop();
+                        return artifactFilename === screenshotFilename;
+                    }
+                    return false;
+                });
+
+                if (artifact && artifact._id) {
+                    // Check if this specific artifact is vectorized
+                    const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
+
+                    // Check if this specific artifact is published
+                    const isArtifactPublished = artifact.published === true;
+
+                    console.log(`Screenshot artifact ${artifact._id}:`, {
+                        isSessionPublished,
+                        isArtifactVectorized,
+                        isArtifactPublished,
+                        artifactPublished: artifact.published,
+                        artifactData: artifact
+                    });
+
+                    if (isSessionPublished || isArtifactVectorized || isArtifactPublished) {
+                        publishedArr.push({ type: 'screenshot', index: idx });
+                        console.log(`Screenshot artifact ${artifact._id} marked as published`);
+                    } else {
+                        // For non-published sessions, check if this artifact has processed content
+                        try {
+                            const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`);
+                            const data = await response.json();
+                            if (data.content && data.content.length > 0) {
+                                processedArr.push({ type: 'screenshot', index: idx });
+                            }
+                        } catch (error) {
+                            console.error('Error checking artifact processing status:', error);
+                        }
+                    }
+                }
+            }
+        }
+
+        setProcessed(processedArr);
+        setPublished(publishedArr);
+        console.log('Refreshed artifact statuses:', { processed: processedArr, published: publishedArr });
+    };
+
     // After session is loaded, check which artifacts are processed and published
     useEffect(() => {
-        async function checkProcessedArtifacts() {
-            if (!session || !session.artifacts) return;
-            const processedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
-            const publishedArr: { type: 'audio' | 'screenshot', index: number }[] = [];
-
-            // Use session status to determine artifact status
-            const sessionStatus = session.status?.toLowerCase() || 'draft';
-            const isSessionPublished = sessionStatus === 'published';
-            const isSessionProcessed = sessionStatus === 'processed';
-
-            // Check audio files
-            if (session.audioFiles && session.audioFiles.length > 0) {
-                for (let idx = 0; idx < session.audioFiles.length; idx++) {
-                    const url = session.audioFiles[idx];
-                    // Extract filename from both URLs for comparison
-                    const audioFilename = url.split('/').pop();
-                    const artifact = session.artifacts.find((a: any) => {
-                        if (a.captureType === 'audio') {
-                            const artifactFilename = a.url.split('/').pop();
-                            return artifactFilename === audioFilename;
-                        }
-                        return false;
-                    });
-
-                    if (artifact && artifact._id) {
-                        // Check if this specific artifact is vectorized
-                        const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
-
-                        if (isSessionPublished || isArtifactVectorized) {
-                            publishedArr.push({ type: 'audio', index: idx });
-                        } else {
-                            // For non-published sessions, check if this artifact has processed content
-                            try {
-                                const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`);
-                                const data = await response.json();
-                                if (data.content && data.content.length > 0) {
-                                    processedArr.push({ type: 'audio', index: idx });
-                                }
-                            } catch (error) {
-                                console.error('Error checking artifact processing status:', error);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Check screenshots
-            if (session.screenshots && session.screenshots.length > 0) {
-                for (let idx = 0; idx < session.screenshots.length; idx++) {
-                    const url = session.screenshots[idx];
-                    // Extract filename from both URLs for comparison
-                    const screenshotFilename = url.split('/').pop();
-                    const artifact = session.artifacts.find((a: any) => {
-                        if (a.captureType === 'screenshot') {
-                            const artifactFilename = a.url.split('/').pop();
-                            return artifactFilename === screenshotFilename;
-                        }
-                        return false;
-                    });
-
-                    if (artifact && artifact._id) {
-                        // Check if this specific artifact is vectorized
-                        const isArtifactVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
-
-                        if (isSessionPublished || isArtifactVectorized) {
-                            publishedArr.push({ type: 'screenshot', index: idx });
-                        } else {
-                            // For non-published sessions, check if this artifact has processed content
-                            try {
-                                const response = await fetch(`${getApiBaseUrl()}/artifacts/artifact-updates/latest/${artifact._id}`);
-                                const data = await response.json();
-                                if (data.content && data.content.length > 0) {
-                                    processedArr.push({ type: 'screenshot', index: idx });
-                                }
-                            } catch (error) {
-                                console.error('Error checking artifact processing status:', error);
-                            }
-                        }
-                    }
-                }
-            }
-
-            setProcessed(processedArr);
-            setPublished(publishedArr);
-        }
-        checkProcessedArtifacts();
+        refreshArtifactStatuses();
     }, [session]);
 
     // Add this after processed state is defined, inside the component body
@@ -1305,6 +1338,12 @@ export default function SessionDetailPage() {
             });
             setShowPublishModal(false);
             setIsPublished(true);
+
+            // Refresh artifact statuses to show updated published state
+            await refreshArtifactStatuses();
+
+            // Refresh session data to get updated artifact published fields
+            await fetchSession();
 
             // Log the session publish activity
             try {
