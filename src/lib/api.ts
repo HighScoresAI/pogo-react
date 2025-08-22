@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.hellopogo.com/';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000/' : 'https://api.hellopogo.com/');
 
 // Utility function to get the base URL for any remaining hardcoded URLs
 export const getApiBaseUrl = () => API_BASE_URL;
@@ -23,40 +23,13 @@ export class ApiClient {
   }
 
   private static async handleWithRefresh<T>(fn: () => Promise<Response>): Promise<T> {
-    let response = await fn();
-    if (response.status === 401) {
-      // Try to refresh token
-      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
-      if (refreshToken) {
-        const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-        if (refreshRes.ok) {
-          const { access_token } = await refreshRes.json();
-          if (access_token) {
-            localStorage.setItem('access_token', access_token);
-            // Retry original request with new token
-            response = await fn();
-          }
-        } else {
-          // Refresh failed, clear tokens
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          throw new Error('Session expired. Please log in again.');
-        }
-      } else {
-        // No refresh token, clear tokens
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        throw new Error('Session expired. Please log in again.');
-      }
-    }
+    const response = await fn();
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
+
     return response.json();
   }
 
@@ -67,6 +40,10 @@ export class ApiClient {
   }
 
   static async post<T>(endpoint: string, data: any): Promise<T> {
+    console.log('ApiClient: POST request to:', `${API_BASE_URL}${endpoint}`);
+    console.log('ApiClient: Request data:', JSON.stringify(data, null, 2));
+    console.log('ApiClient: Request headers:', JSON.stringify(this.getAuthHeaders(), null, 2));
+
     return this.handleWithRefresh<T>(() => fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -129,6 +106,31 @@ export class ApiClient {
     });
   }
 
+  static async sendSessionMessage(sessionId: string, message: string, userId: string, chatSessionId?: string, projectId?: string) {
+    console.log('ApiClient: sendSessionMessage called with:', { sessionId, message, userId, chatSessionId, projectId });
+
+    try {
+      const requestData: any = {
+        message,
+        userId,
+        sessionId
+      };
+
+      // Include projectId if available for better context
+      if (projectId) {
+        requestData.projectId = projectId;
+      }
+
+      const response = await this.post(`/api/chat/session/${sessionId}/message`, requestData);
+
+      console.log('ApiClient: sendSessionMessage response:', response);
+      return response;
+    } catch (error) {
+      console.error('ApiClient: sendSessionMessage error:', error);
+      throw error;
+    }
+  }
+
   static async sendGeneralMessage(message: string, userId: string, sessionId?: string) {
     return this.post(`/api/chat/message`, {
       message,
@@ -138,7 +140,7 @@ export class ApiClient {
   }
 
   static async getChatHistory(sessionId: string) {
-    return this.get(`/chat/history/${sessionId}`);
+    return this.get(`/api/chat/history/${sessionId}`);
   }
 
   // User management methods

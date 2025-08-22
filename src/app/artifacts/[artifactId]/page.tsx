@@ -23,6 +23,7 @@ import ActivityLogList from '../../../components/ActivityLogList';
 import { ApiClient, getApiBaseUrl } from '../../../lib/api';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import ChatbotWidget from '../../../components/ChatbotWidget';
 
 const lowlight = createLowlight();
 
@@ -1531,6 +1532,9 @@ export default function ArtifactDetailPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Artifact-specific Chatbot */}
+            <ChatbotWidget position="bottom-right" />
 
         </>
     );

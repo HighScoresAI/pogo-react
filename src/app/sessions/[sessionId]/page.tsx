@@ -34,6 +34,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import ChatbotWidget from '../../../components/ChatbotWidget';
 
 console.log('testValue from lib/test:', testValue);
 
@@ -600,9 +601,10 @@ export default function SessionDetailPage() {
 
         // Count artifacts by status
         session.artifacts.forEach((artifact: any) => {
-            const isVectorized = session.vectorized_artifacts?.some((v: any) => v.artifact_id === artifact._id);
+            // Check if artifact is published (to blog or chatbot)
+            const isPublished = artifact.published || artifact.publish_to_blog || artifact.publish_to_chatbot;
 
-            if (isVectorized) {
+            if (isPublished) {
                 publishedCount++;
             } else {
                 // Check if artifact has processed content
@@ -1339,11 +1341,11 @@ export default function SessionDetailPage() {
             setShowPublishModal(false);
             setIsPublished(true);
 
-            // Refresh artifact statuses to show updated published state
-            await refreshArtifactStatuses();
-
-            // Refresh session data to get updated artifact published fields
+            // First refresh session data to get updated artifact published fields
             await fetchSession();
+
+            // Then refresh artifact statuses to show updated published state
+            await refreshArtifactStatuses();
 
             // Log the session publish activity
             try {
@@ -2042,6 +2044,10 @@ export default function SessionDetailPage() {
                     return selectedIds;
                 })()}
             />
+
+            {/* Session-specific Chatbot */}
+            <ChatbotWidget position="bottom-right" />
+
         </>
     );
 } 

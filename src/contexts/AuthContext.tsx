@@ -36,7 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const decodedToken: any = JSON.parse(atob(token.split('.')[1]));
-      return decodedToken?.sub || null;
+      // Use the same logic as getUserIdFromToken for consistency
+      return decodedToken?.sub || decodedToken?.userId || decodedToken?.user_id || decodedToken?.id || null;
     } catch (error) {
       console.error('Error decoding token:', error);
       return null;
@@ -47,8 +48,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!token) return null;
 
     try {
-      const decodedToken: any = JSON.parse(atob(token.split('.')[1]));
-      return decodedToken?.sub || null;
+      console.log('AuthContext: Raw token:', token);
+      const payload = token.split('.')[1];
+      console.log('AuthContext: Token payload (base64):', payload);
+      const decodedToken: any = JSON.parse(atob(payload));
+      console.log('AuthContext: Decoded token payload:', decodedToken);
+      console.log('AuthContext: Looking for userId in:', Object.keys(decodedToken));
+      
+      // Try different possible fields for userId
+      const userId = decodedToken?.sub || decodedToken?.userId || decodedToken?.user_id || decodedToken?.id || null;
+      console.log('AuthContext: Extracted userId:', userId);
+      
+      return userId;
     } catch (error) {
       console.error('Error decoding token:', error);
       return null;
@@ -57,14 +68,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (data: LoginRequest): Promise<void> => {
     try {
+      console.log('AuthContext: Login attempt with data:', data);
       const response: LoginResponse = await ApiClient.post('/auth/login', data);
+      console.log('AuthContext: Login response:', response);
 
       if (response && response.access_token) {
+        console.log('AuthContext: Got access token, storing in localStorage');
         localStorage.setItem('access_token', response.access_token);
         const userId = getUserIdFromToken(response.access_token);
+        console.log('AuthContext: Extracted userId from token:', userId);
         setIsLoggedIn(true);
         setUserId(userId);
         router.push('/welcome');
+      } else {
+        console.error('AuthContext: No access token in response');
       }
     } catch (error) {
       console.error('Login error:', error);

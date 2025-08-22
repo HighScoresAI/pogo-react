@@ -45,6 +45,7 @@ import { ApiClient } from '../../lib/api';
 import Shepherd from 'shepherd.js';
 import 'shepherd.js/dist/css/shepherd.css';
 import Header from './Header';
+import ChatbotWidget from '../ChatbotWidget';
 
 const drawerWidth = 240;
 
@@ -218,6 +219,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <>
             <Header />
             {children}
+            <ChatbotWidget position="bottom-right" />
         </>
     );
 } 

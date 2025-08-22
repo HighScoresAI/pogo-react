@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Box, Typography, Breadcrumbs, Link, Card, Avatar, IconButton, Button, TextField, InputAdornment, Menu, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Stack, Pagination } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -16,6 +16,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import ActivityLogList from '../../../components/ActivityLogList';
+import ChatbotWidget from '../../../components/ChatbotWidget';
 
 const mockTeam = [
     { name: 'Darlene Robertson', role: 'Owner', avatar: '', },
@@ -29,6 +30,7 @@ export default function ProjectDetailsStatic() {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const [menuIdx, setMenuIdx] = React.useState<number | null>(null);
     const [search, setSearch] = React.useState('');
+    const [debouncedSearch, setDebouncedSearch] = React.useState('');
     const [page, setPage] = useState(1); // Default to page 1
     const sessionsPerPage = 10;
     const [overviewStats, setOverviewStats] = useState([
@@ -55,10 +57,8 @@ export default function ProjectDetailsStatic() {
         async function fetchStats() {
             if (!projectId) return;
             try {
-                // Add cache-busting parameter to force fresh data
-                const timestamp = Date.now();
-                const stats = await ApiClient.get<{ total?: number; draft?: number; processed?: number; published?: number }>(`/projects/${projectId}/session-stats?t=${timestamp}`);
-                console.log('Fetched project stats:', stats); // Debug log
+                const stats = await ApiClient.get<{ total?: number; draft?: number; processed?: number; published?: number }>(`/projects/${projectId}/session-stats`);
+                console.log('Fetched project stats:', stats);
                 setOverviewStats([
                     { label: 'Sessions', value: stats.total ?? 0, icon: <img src="/Frame (2).svg" alt="Sessions" style={{ width: 28, height: 28 }} /> },
                     { label: 'Draft Sessions', value: stats.draft ?? 0, icon: <img src="/draft session.svg" alt="Draft Sessions" style={{ width: 28, height: 28 }} /> },
@@ -66,7 +66,7 @@ export default function ProjectDetailsStatic() {
                     { label: 'Published Sessions', value: stats.published ?? 0, icon: <img src="/published.svg" alt="Published Sessions" style={{ width: 28, height: 28 }} /> },
                 ]);
             } catch (error) {
-                console.error('Error fetching project stats:', error); // Debug log
+                console.error('Error fetching project stats:', error);
                 setOverviewStats([
                     { label: 'Sessions', value: 0, icon: <img src="/Frame (2).svg" alt="Sessions" style={{ width: 28, height: 28 }} /> },
                     { label: 'Draft Sessions', value: 0, icon: <img src="/draft session.svg" alt="Draft Sessions" style={{ width: 28, height: 28 }} /> },
@@ -76,10 +76,6 @@ export default function ProjectDetailsStatic() {
             }
         }
         fetchStats();
-
-        // Refresh stats every 5 seconds to ensure we have the latest data
-        const interval = setInterval(fetchStats, 5000);
-        return () => clearInterval(interval);
     }, [projectId]);
 
     useEffect(() => {
@@ -129,7 +125,11 @@ export default function ProjectDetailsStatic() {
 
     useEffect(() => {
         async function fetchUserNames() {
+            if (sessions.length === 0) return;
+
             const userIds = Array.from(new Set(sessions.map((s) => s.createdBy).filter(Boolean)));
+            if (userIds.length === 0) return;
+
             const userMapTemp: { [userId: string]: string } = {};
             await Promise.all(userIds.map(async (userId) => {
                 try {
@@ -145,7 +145,7 @@ export default function ProjectDetailsStatic() {
             }));
             setUserMap(userMapTemp);
         }
-        if (sessions.length > 0) fetchUserNames();
+        fetchUserNames();
     }, [sessions]);
     // Create refs for each TableRow
     const rowRefs = React.useRef<(HTMLTableRowElement | null)[]>([]);
@@ -280,12 +280,60 @@ export default function ProjectDetailsStatic() {
         setDeleteDialogOpen(false);
     };
 
-    const filteredSessions = sessions.filter(
-        (row) => (row.name || '').toLowerCase().includes(search.toLowerCase())
-    );
+    // Debounced search effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // Reset page when search changes
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch]);
+
+    // Cleanup effect to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            // Cleanup any pending operations when component unmounts
+            setPage(1);
+            setSearch('');
+            setDebouncedSearch('');
+        };
+    }, []);
+
+    // Memoize filtered sessions to prevent unnecessary recalculations
+    const filteredSessions = useMemo(() => {
+        if (!debouncedSearch) return sessions;
+        return sessions.filter(session =>
+            session.name?.toLowerCase().includes(debouncedSearch.toLowerCase())
+        );
+    }, [sessions, debouncedSearch]);
+
+    // Memoize paginated sessions
+    const paginatedSessions = useMemo(() => {
+        const startIndex = (page - 1) * sessionsPerPage;
+        const endIndex = startIndex + sessionsPerPage;
+        return filteredSessions.slice(startIndex, endIndex);
+    }, [filteredSessions, page, sessionsPerPage]);
 
     console.log('Project ID for ActivityLogList:', projectId);
     console.log('Sessions data:', sessions);
+
+    // Memoize ActivityLogList props to prevent unnecessary re-renders
+    const activityLogListProps = useMemo(() => ({
+        type: "project" as const,
+        id: projectId as string,
+        title: "Activity Logs"
+    }), [projectId]);
+
+    // Memoize the ActivityLogList component
+    const memoizedActivityLogList = useMemo(() => {
+        console.log('ActivityLogList re-rendering with projectId:', projectId);
+        return <ActivityLogList {...activityLogListProps} />;
+    }, [activityLogListProps, projectId]);
 
     return (
         <Box sx={{ bgcolor: '#fafbfc', minHeight: '100vh', overflowY: 'auto', overflowX: 'hidden' }}>
@@ -439,7 +487,7 @@ export default function ProjectDetailsStatic() {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {filteredSessions.slice((page - 1) * sessionsPerPage, page * sessionsPerPage).map((row, idx) => {
+                                    {paginatedSessions.map((row, idx) => {
                                         const lastUserId = row.updatedBy || row.lastUpdatedBy || row.createdBy;
                                         const lastDate = row.updatedAt || row.lastUpdatedAt || row.createdAt;
                                         const audioCount = (row.artifacts || []).filter((a: { captureType?: string }) => a.captureType === 'audio').length;
@@ -614,11 +662,7 @@ export default function ProjectDetailsStatic() {
                         pb: 4,
                         overflow: 'visible'
                     }}>
-                        <ActivityLogList
-                            type="project"
-                            id={projectId as string}
-                            title="Activity Logs"
-                        />
+                        {memoizedActivityLogList}
                     </Box>
                 </Box>
             </Box>
@@ -673,6 +717,9 @@ export default function ProjectDetailsStatic() {
                     {snackbar.message}
                 </MuiAlert>
             </Snackbar>
+
+            {/* Project-specific Chatbot */}
+            <ChatbotWidget position="bottom-right" />
         </Box>
     );
 } 

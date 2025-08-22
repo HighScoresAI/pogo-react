@@ -134,7 +134,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
-    const [rowsPerPage] = useState(10);
+    const [rowsPerPage] = useState(7);
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -171,6 +171,11 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
             fetchLogs();
         }
     }, [type, id]);
+
+    // Reset page to 1 when search term changes
+    useEffect(() => {
+        setPage(1);
+    }, [searchTerm]);
 
     const filteredLogs = logs.filter(log =>
         log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -279,7 +284,9 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                     bgcolor: '#fff'
                 }}>
-                    <TableContainer sx={{ maxHeight: 600, overflow: 'visible' }}>
+                    <TableContainer sx={{
+                        overflow: 'visible'
+                    }}>
                         <Table stickyHeader>
                             <TableHead>
                                 <TableRow sx={{ bgcolor: '#fafafa' }}>
@@ -287,7 +294,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                                         fontWeight: 600,
                                         color: '#666',
                                         borderBottom: '1px solid #e0e0e0',
-                                        py: 2
+                                        py: 3
                                     }}>
                                         Action
                                     </TableCell>
@@ -295,7 +302,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                                         fontWeight: 600,
                                         color: '#666',
                                         borderBottom: '1px solid #e0e0e0',
-                                        py: 2
+                                        py: 3
                                     }}>
                                         Taken by
                                     </TableCell>
@@ -303,7 +310,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                                         fontWeight: 600,
                                         color: '#666',
                                         borderBottom: '1px solid #e0e0e0',
-                                        py: 2
+                                        py: 3
                                     }}>
                                         Date & time
                                     </TableCell>
@@ -311,7 +318,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                                         fontWeight: 600,
                                         color: '#666',
                                         borderBottom: '1px solid #e0e0e0',
-                                        py: 2
+                                        py: 3
                                     }}>
                                         Description
                                     </TableCell>
@@ -326,7 +333,7 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                                             borderBottom: '1px solid #f0f0f0'
                                         }}
                                     >
-                                        <TableCell sx={{ py: 2 }}>
+                                        <TableCell sx={{ py: 3 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 {getActivityIcon(log.activity_type)}
                                                 <Typography variant="body2" sx={{ fontWeight: 500, color: '#222' }}>
@@ -334,17 +341,17 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
                                                 </Typography>
                                             </Box>
                                         </TableCell>
-                                        <TableCell sx={{ py: 2 }}>
+                                        <TableCell sx={{ py: 3 }}>
                                             <Typography variant="body2" sx={{ color: '#666' }}>
                                                 {log.metadata?.user_name || log.user_name || 'System'}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={{ py: 2 }}>
+                                        <TableCell sx={{ py: 3 }}>
                                             <Typography variant="body2" sx={{ color: '#666' }}>
                                                 {formatTimestamp(log.timestamp)}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={{ py: 2 }}>
+                                        <TableCell sx={{ py: 3 }}>
                                             <Typography variant="body2" sx={{ color: '#222' }}>
                                                 {log.description}
                                             </Typography>
@@ -358,17 +365,70 @@ export default function ActivityLogList({ type, id, title }: ActivityLogListProp
             )}
 
             {/* Pagination */}
-            {filteredLogs.length > rowsPerPage && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-                    <Pagination
-                        count={Math.ceil(filteredLogs.length / rowsPerPage)}
-                        page={page}
-                        onChange={handlePageChange}
-                        color="primary"
-                        size="large"
-                        showFirstButton
-                        showLastButton
-                    />
+            {filteredLogs.length > 0 ? (
+                filteredLogs.length > rowsPerPage && (
+                    <Box sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        mt: 3,
+                        py: 2,
+                        borderTop: '1px solid #eee',
+                        bgcolor: 'background.paper'
+                    }}>
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                color: '#666',
+                                mb: 1,
+                                fontSize: '0.875rem'
+                            }}
+                        >
+                            Page {page} of {Math.ceil(filteredLogs.length / rowsPerPage)} • {filteredLogs.length} total logs
+                        </Typography>
+                        <Pagination
+                            count={Math.ceil(filteredLogs.length / rowsPerPage)}
+                            page={page}
+                            onChange={handlePageChange}
+                            color="primary"
+                            shape="rounded"
+                            variant="outlined"
+                            size="large"
+                            showFirstButton
+                            showLastButton
+                            sx={{
+                                '& .MuiPagination-ul': {
+                                    border: '1px solid #E5EAF2',
+                                    borderRadius: 3,
+                                    background: '#fff',
+                                    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                                    px: 1,
+                                },
+                                '& .MuiPaginationItem-root': {
+                                    border: 'none',
+                                    minWidth: 36,
+                                    height: 36,
+                                    margin: 0,
+                                    '&:hover': {
+                                        backgroundColor: '#f5f5f5',
+                                        transform: 'translateY(-1px)',
+                                        transition: 'all 0.2s ease-in-out',
+                                    },
+                                },
+                            }}
+                        />
+                    </Box>
+                )
+            ) : (
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    py: 4,
+                    color: '#666',
+                    fontSize: '0.875rem'
+                }}>
+                    No activity logs found.
                 </Box>
             )}
         </Box>

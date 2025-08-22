@@ -22,6 +22,7 @@ export default function LoginPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,17 +31,36 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
+      console.log('Sending passcode for email:', formData.email);
       // Send email to get passcode
       await ApiClient.post('/auth/send-passcode', { email: formData.email });
 
+      // Clear any previous errors and show success message
+      setError('');
+      setSuccessMessage('Passcode sent successfully! Check your email.');
+
       // Move to passcode step
       setCurrentStep('passcode');
+
+      // Clear success message after a few seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to send passcode. Please try again.');
+      const errorMessage = (err as Error).message || 'Failed to send passcode. Please try again.';
+
+      // Check if it's a user not registered error
+      if (errorMessage.includes('not registered') || errorMessage.includes('sign up')) {
+        setError('Account not found. Please sign up first or check your email address.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+
 
   const handlePasscodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,10 +78,30 @@ export default function LoginPage() {
       // Store the access token
       localStorage.setItem('access_token', result.access_token);
 
+      // Clear any messages before redirecting
+      setError('');
+      setSuccessMessage('');
+
       // Redirect to welcome page
       router.push('/welcome');
     } catch (err: unknown) {
-      setError((err as Error).message || 'Invalid passcode. Please try again.');
+      const errorMessage = (err as Error).message || 'Invalid passcode. Please try again.';
+
+      // Check if it's a user not registered error
+      if (errorMessage.includes('not registered') || errorMessage.includes('sign up')) {
+        setError('Account not found. Please sign up first or check your email address.');
+        setSuccessMessage(''); // Clear success message
+        setCurrentStep('email'); // Go back to email step
+      } else if (errorMessage.includes('Invalid passcode')) {
+        setError('Invalid passcode. Please check the code and try again.');
+        setSuccessMessage(''); // Clear success message
+      } else if (errorMessage.includes('expired')) {
+        setError('Passcode has expired. Please request a new one.');
+        setSuccessMessage(''); // Clear success message
+      } else {
+        setError(errorMessage);
+        setSuccessMessage(''); // Clear success message
+      }
     } finally {
       setLoading(false);
     }
@@ -72,6 +112,11 @@ export default function LoginPage() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+
+    // Clear success message when user changes email
+    if (e.target.name === 'email') {
+      setSuccessMessage('');
+    }
   };
 
 
@@ -87,10 +132,28 @@ export default function LoginPage() {
       // Clear the current passcode
       setFormData(prev => ({ ...prev, passcode: '' }));
 
-      // Show success message (you could add a toast notification here)
+      // Show success message
+      setError(''); // Clear any previous errors
+      setSuccessMessage('New passcode sent successfully! Check your email.');
+      // You could add a toast notification here for success
       console.log('Passcode resent successfully');
+
+      // Clear success message after a few seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to resend passcode. Please try again.');
+      const errorMessage = (err as Error).message || 'Failed to resend passcode. Please try again.';
+
+      // Check if it's a user not registered error
+      if (errorMessage.includes('not registered') || errorMessage.includes('sign up')) {
+        setError('Account not found. Please sign up first or check your email address.');
+        setSuccessMessage(''); // Clear success message
+        setCurrentStep('email'); // Go back to email step
+      } else {
+        setError(errorMessage);
+        setSuccessMessage(''); // Clear success message
+      }
     }
   };
 
@@ -274,6 +337,37 @@ export default function LoginPage() {
               // Email Input Step
               <Box component="form" onSubmit={handleEmailSubmit}>
                 <Stack spacing={4}>
+                  {/* Show helpful message if there's an account not found error */}
+                  {error && error.includes('not registered') && (
+                    <Box sx={{
+                      p: 3,
+                      backgroundColor: '#e3f2fd',
+                      border: '1px solid #2196f3',
+                      borderRadius: '12px',
+                      textAlign: 'center',
+                      mb: 2
+                    }}>
+                      <Typography variant="body1" sx={{ color: '#1976d2', mb: 1, fontWeight: 600 }}>
+                        💡 New to Pogo?
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#666', fontSize: '0.9rem', lineHeight: 1.4 }}>
+                        This email isn't registered yet. Create your account to get started!
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => router.push('/register')}
+                        sx={{
+                          mt: 2,
+                          bgcolor: '#00AAF8',
+                          '&:hover': { bgcolor: '#0095e0' }
+                        }}
+                      >
+                        Sign Up Now
+                      </Button>
+                    </Box>
+                  )}
+
                   <Button
                     fullWidth
                     variant="outlined"
@@ -328,6 +422,13 @@ export default function LoginPage() {
                       },
                     }}
                   />
+
+                  {/* Show helpful tip when no error */}
+                  {!error && formData.email && (
+                    <Typography variant="caption" sx={{ color: '#666', fontSize: '0.8rem', textAlign: 'center' }}>
+                      💡 Enter the email address you used to sign up
+                    </Typography>
+                  )}
 
                   <Button
                     type="submit"
@@ -389,6 +490,45 @@ export default function LoginPage() {
                         {formData.email.replace(/(.{2}).*(@.*)/, '$1****$2')}
                       </span>
                     </Typography>
+
+                    {/* Show helpful message if there's an account not found error */}
+                    {error && error.includes('not registered') && (
+                      <Box sx={{
+                        p: 2,
+                        backgroundColor: '#fff3e0',
+                        border: '1px solid #ff9800',
+                        borderRadius: '8px',
+                        textAlign: 'center',
+                        mb: 2
+                      }}>
+                        <Typography variant="body2" sx={{ color: '#e65100', mb: 1, fontWeight: 600 }}>
+                          ⚠️ Account Issue Detected
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#666', fontSize: '0.9rem' }}>
+                          This email isn't registered. Please go back and sign up first.
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => {
+                            setError('');
+                            setSuccessMessage('');
+                            setCurrentStep('email');
+                          }}
+                          sx={{
+                            mt: 1,
+                            borderColor: '#ff9800',
+                            color: '#ff9800',
+                            '&:hover': {
+                              borderColor: '#f57c00',
+                              backgroundColor: 'rgba(255, 152, 0, 0.04)'
+                            }
+                          }}
+                        >
+                          Go Back to Sign In
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
 
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
@@ -440,6 +580,46 @@ export default function LoginPage() {
                     ))}
                   </Box>
 
+                  {/* Show helpful message for expired passcode */}
+                  {error && error.includes('expired') && (
+                    <Box sx={{
+                      p: 2,
+                      backgroundColor: '#fff3e0',
+                      border: '1px solid #ff9800',
+                      borderRadius: '8px',
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="body2" sx={{ color: '#e65100', mb: 1, fontWeight: 600 }}>
+                        ⏰ Passcode Expired
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#666', fontSize: '0.9rem' }}>
+                        Your passcode has expired. Please request a new one.
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Show success message */}
+                  {successMessage && (
+                    <Box sx={{
+                      p: 2,
+                      backgroundColor: '#e8f5e8',
+                      border: '1px solid #4caf50',
+                      borderRadius: '8px',
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 600 }}>
+                        ✅ {successMessage}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Show helpful tip when no error and no success message */}
+                  {!error && !successMessage && (
+                    <Typography variant="caption" sx={{ color: '#666', fontSize: '0.8rem', textAlign: 'center' }}>
+                      💡 Enter the 6-digit code from your email
+                    </Typography>
+                  )}
+
                   <Link
                     component="button"
                     variant="body2"
@@ -486,9 +666,75 @@ export default function LoginPage() {
             )}
 
             {error && (
-              <Typography color="error" sx={{ mt: 2, textAlign: 'center' }}>
-                {error}
-              </Typography>
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Typography
+                  color="error"
+                  sx={{
+                    mb: 2,
+                    fontSize: '0.9rem',
+                    lineHeight: 1.4,
+                    padding: '12px 16px',
+                    backgroundColor: '#fff5f5',
+                    border: '1px solid #fed7d7',
+                    borderRadius: '8px',
+                    color: '#c53030'
+                  }}
+                >
+                  {error}
+                </Typography>
+
+                {/* Show action buttons for specific error types */}
+                {error.includes('Account not found') && (
+                  <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => router.push('/register')}
+                      sx={{
+                        borderColor: '#00AAF8',
+                        color: '#00AAF8',
+                        '&:hover': {
+                          borderColor: '#0095e0',
+                          backgroundColor: 'rgba(0, 170, 248, 0.04)'
+                        }
+                      }}
+                    >
+                      Sign Up
+                    </Button>
+                    <Button
+                      variant="text"
+                      size="small"
+                      onClick={() => {
+                        setError('');
+                        setSuccessMessage('');
+                        setCurrentStep('email');
+                      }}
+                      sx={{ color: '#666' }}
+                    >
+                      Try Different Email
+                    </Button>
+                  </Stack>
+                )}
+
+                {error.includes('Passcode has expired') && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={handleResendPasscode}
+                    sx={{
+                      mt: 1,
+                      borderColor: '#00AAF8',
+                      color: '#00AAF8',
+                      '&:hover': {
+                        borderColor: '#0095e0',
+                        backgroundColor: 'rgba(0, 170, 248, 0.04)'
+                      }
+                    }}
+                  >
+                    Request New Passcode
+                  </Button>
+                )}
+              </Box>
             )}
           </Box>
         </Box>
