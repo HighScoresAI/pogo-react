@@ -14,6 +14,7 @@ interface AuthContextType {
   getToken: () => string | null;
   getUserId: () => string | null;
   getUserIdFromToken: (token: string) => string | null;
+  verifyToken: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +42,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error decoding token:', error);
       return null;
+    }
+  };
+
+  const verifyToken = async (): Promise<boolean> => {
+    const token = getToken();
+    if (!token) return false;
+
+    try {
+      // Try to get user profile to verify token is valid
+      const response = await ApiClient.getUserProfile();
+      console.log('AuthContext: Token verification successful:', response);
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Token verification failed:', error);
+      // Token is invalid, clear it
+      localStorage.removeItem('access_token');
+      setIsLoggedIn(false);
+      setUserId(null);
+      return false;
     }
   };
 
@@ -124,18 +144,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
     const token = getToken();
+    console.log('AuthContext: useEffect triggered, token:', !!token);
+
     if (token) {
+      // Verify token is valid
+      verifyToken().then(isValid => {
+        if (isValid) {
       const userId = getUserIdFromToken(token);
+          console.log('AuthContext: Token verified, extracted userId:', userId);
       setIsLoggedIn(true);
       setUserId(userId);
+        } else {
+          console.log('AuthContext: Token invalid, clearing auth state');
+          setIsLoggedIn(false);
+          setUserId(null);
+        }
+      });
+    } else {
+      console.log('AuthContext: No token found, user not logged in');
+      setIsLoggedIn(false);
+      setUserId(null);
     }
+
     // Handle Google OAuth JWT token in URL
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const jwt = params.get('token');
       if (jwt) {
+        console.log('AuthContext: JWT token found in URL params');
         localStorage.setItem('access_token', jwt);
         const userId = getUserIdFromToken(jwt);
+        console.log('AuthContext: JWT token processed, userId:', userId);
         setIsLoggedIn(true);
         setUserId(userId);
         // Remove token from URL and redirect to welcome page
@@ -154,6 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getToken,
     getUserId,
     getUserIdFromToken,
+    verifyToken,
   };
 
   // Prevent hydration mismatch by ensuring consistent initial state

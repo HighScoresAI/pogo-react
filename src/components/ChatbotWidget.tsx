@@ -13,12 +13,14 @@ import {
     Slide,
     Fade,
     Zoom,
+    CircularProgress,
 } from '@mui/material';
 import {
     Chat as ChatIcon,
     Close as CloseIcon,
     SmartToy as BotIcon,
     SmartToy,
+    Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { TransitionProps } from '@mui/material/transitions';
 
@@ -48,13 +50,14 @@ export default function ChatbotWidget({
     position = 'bottom-right',
     theme = 'light'
 }: ChatbotWidgetProps) {
-    const { userId } = useAuth();
+    const { userId, isLoggedIn, getToken } = useAuth();
     const { projectId, projectName, sessionId, sessionName, isProjectPage, isSessionPage } = useProjectContext();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isTyping, setIsTyping] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
+    const [contextLoaded, setContextLoaded] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Initialize welcome message when context is available
@@ -97,14 +100,22 @@ export default function ChatbotWidget({
     // Debug: Log userId when component mounts
     useEffect(() => {
         console.log('ChatbotWidget: Current userId:', userId);
-        console.log('ChatbotWidget: User logged in:', !!userId);
+        console.log('ChatbotWidget: User logged in:', isLoggedIn);
+        console.log('ChatbotWidget: Token available:', !!getToken());
         console.log('ChatbotWidget: Auth context working:', !!useAuth);
-    }, [userId]);
+
+        // Additional debugging
+        if (typeof window !== 'undefined') {
+            console.log('ChatbotWidget: localStorage access_token:', localStorage.getItem('access_token'));
+            console.log('ChatbotWidget: localStorage token:', localStorage.getItem('token'));
+        }
+    }, [userId, isLoggedIn, getToken]);
 
     // Debug: Log when component first mounts
     useEffect(() => {
         console.log('ChatbotWidget: Component mounted');
         console.log('ChatbotWidget: Initial userId:', userId);
+        console.log('ChatbotWidget: Initial isLoggedIn:', isLoggedIn);
         console.log('ChatbotWidget: Auth context available:', !!useAuth);
     }, []);
 
@@ -118,9 +129,43 @@ export default function ChatbotWidget({
             isProjectPage,
             isSessionPage
         });
+
+        // Additional debugging for routing
+        if (typeof window !== 'undefined') {
+            console.log('ChatbotWidget: Current URL:', window.location.href);
+            console.log('ChatbotWidget: Current pathname:', window.location.pathname);
+            console.log('ChatbotWidget: URL includes /projects:', window.location.pathname.includes('/projects'));
+            console.log('ChatbotWidget: URL includes /sessions:', window.location.pathname.includes('/sessions'));
+        }
+
+        // Mark context as loaded when we have the necessary information
+        if (isProjectPage && projectId) {
+            setContextLoaded(true);
+            console.log('ChatbotWidget: Project context loaded:', { projectId, projectName });
+        } else if (isSessionPage && sessionId) {
+            setContextLoaded(true);
+            console.log('ChatbotWidget: Session context loaded:', { sessionId, sessionName });
+        } else if (!isProjectPage && !isSessionPage) {
+            setContextLoaded(true);
+            console.log('ChatbotWidget: General context loaded');
+        }
     }, [projectId, projectName, sessionId, sessionName, isProjectPage, isSessionPage]);
 
     const handleOpenChat = async () => {
+        // Check authentication before opening chat
+        if (!isLoggedIn || !userId) {
+            console.error('ChatbotWidget: Cannot open chat - user not authenticated');
+            // Show authentication error message
+            setMessages([{
+                id: '1',
+                message: 'Please log in to use the chatbot. You can log in using the login button in the header.',
+                sender: 'bot',
+                timestamp: new Date(),
+                status: 'error'
+            }]);
+            return;
+        }
+
         setIsOpen(true);
         setUnreadCount(0);
 
@@ -147,12 +192,31 @@ export default function ChatbotWidget({
             return;
         }
 
-        if (!userId) {
-            console.error('ChatbotWidget: No userId available');
+        // Enhanced authentication check
+        if (!isLoggedIn || !userId) {
+            console.error('ChatbotWidget: No userId available or user not logged in');
+            console.error('ChatbotWidget: isLoggedIn:', isLoggedIn);
+            console.error('ChatbotWidget: userId:', userId);
+            console.error('ChatbotWidget: token:', getToken());
+
             // Add error message to chat
             const errorMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
-                message: 'Please log in to use the chatbot.',
+                message: 'Please log in to use the chatbot. You can log in using the login button in the header.',
+                sender: 'bot',
+                timestamp: new Date(),
+                status: 'error'
+            };
+            setMessages(prev => [...prev, errorMessage]);
+            return;
+        }
+
+        // Check if context is loaded
+        if (!contextLoaded) {
+            console.error('ChatbotWidget: Context not yet loaded');
+            const errorMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                message: 'Please wait a moment while I load the project context...',
                 sender: 'bot',
                 timestamp: new Date(),
                 status: 'error'
@@ -290,7 +354,7 @@ export default function ChatbotWidget({
             >
                 <Badge badgeContent={unreadCount} color="error" max={99}>
                     <Fab
-                        color="primary"
+                        color={isLoggedIn ? "primary" : "secondary"}
                         aria-label="chat"
                         onClick={handleOpenChat}
                         sx={{
@@ -302,7 +366,9 @@ export default function ChatbotWidget({
                                 boxShadow: '0 6px 25px rgba(0,0,0,0.2)',
                             },
                             transition: 'all 0.2s ease-in-out',
+                            opacity: isLoggedIn ? 1 : 0.7,
                         }}
+                        title={isLoggedIn ? "Chat with AI Assistant" : "Please log in to use the chatbot"}
                     >
                         <BotIcon sx={{ fontSize: 28 }} />
                     </Fab>
@@ -335,15 +401,53 @@ export default function ChatbotWidget({
                         p: 2,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
-                        bgcolor: 'primary.main',
+                        bgcolor: isLoggedIn ? 'primary.main' : 'warning.main',
                         color: 'white',
                     }}
                 >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <BotIcon />
                         <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            {isSessionPage ? `${sessionName || 'Session'} AI` : isProjectPage ? `${projectName || 'Project'} AI` : 'AI Assistant'}
+                            {!isLoggedIn ? 'Authentication Required' :
+                                isSessionPage ? `${sessionName || 'Session'} AI` :
+                                    isProjectPage ? `${projectName || 'Project'} AI` : 'AI Assistant'}
                         </Typography>
+                        {!isLoggedIn && (
+                            <Typography variant="caption" sx={{ opacity: 0.8, ml: 1 }}>
+                                Please log in to continue
+                            </Typography>
+                        )}
+                        {isLoggedIn && (
+                            <Typography variant="caption" sx={{ opacity: 0.8, ml: 1, color: 'success.light' }}>
+                                ✓ Authenticated
+                            </Typography>
+                        )}
+                        {!isLoggedIn && (
+                            <IconButton
+                                size="small"
+                                onClick={async () => {
+                                    try {
+                                        const { verifyToken } = useAuth();
+                                        const isValid = await verifyToken();
+                                        if (isValid) {
+                                            console.log('ChatbotWidget: Token verification successful');
+                                        } else {
+                                            console.log('ChatbotWidget: Token verification failed');
+                                        }
+                                    } catch (error) {
+                                        console.error('ChatbotWidget: Error verifying token:', error);
+                                    }
+                                }}
+                                sx={{
+                                    color: 'white',
+                                    opacity: 0.8,
+                                    '&:hover': { opacity: 1 }
+                                }}
+                                title="Refresh authentication status"
+                            >
+                                <RefreshIcon fontSize="small" />
+                            </IconButton>
+                        )}
                         {isSessionPage && (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Typography variant="caption" sx={{ opacity: 0.8 }}>
@@ -358,7 +462,7 @@ export default function ChatbotWidget({
                                                     method: 'POST',
                                                     headers: {
                                                         'Content-Type': 'application/json',
-                                                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                                                     }
                                                 });
                                                 if (response.ok) {
@@ -397,7 +501,7 @@ export default function ChatbotWidget({
                                                     method: 'POST',
                                                     headers: {
                                                         'Content-Type': 'application/json',
-                                                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                                                     }
                                                 });
                                                 if (response.ok) {
@@ -434,12 +538,53 @@ export default function ChatbotWidget({
 
                 {/* Chat Content */}
                 <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
-                    <ChatInterface
-                        messages={messages}
-                        onSendMessage={handleSendMessage}
-                        isTyping={isTyping}
-                        messagesEndRef={messagesEndRef}
-                    />
+                    {!isLoggedIn ? (
+                        <Box sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            p: 4,
+                            textAlign: 'center'
+                        }}>
+                            <BotIcon sx={{ fontSize: 64, color: 'warning.main', mb: 2 }} />
+                            <Typography variant="h6" sx={{ mb: 2 }}>
+                                Authentication Required
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                Please log in to use the chatbot. You can ask questions about your projects, sessions, and artifacts.
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Use the login button in the header to authenticate
+                            </Typography>
+                        </Box>
+                    ) : !contextLoaded ? (
+                        <Box sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            p: 4,
+                            textAlign: 'center'
+                        }}>
+                            <CircularProgress sx={{ mb: 2 }} />
+                            <Typography variant="h6" sx={{ mb: 2 }}>
+                                Loading Project Context...
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                Please wait while I gather information about your current project.
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <ChatInterface
+                            messages={messages}
+                            onSendMessage={handleSendMessage}
+                            isTyping={isTyping}
+                            messagesEndRef={messagesEndRef}
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
         </>
