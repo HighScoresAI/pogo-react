@@ -15,45 +15,79 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArticleIcon from "@mui/icons-material/Article";
 import Link from "next/link";
 import { ApiClient } from '../../lib/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function Header() {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
     const [user, setUser] = useState<{ firstName: string; avatar?: string }>({ firstName: "", avatar: undefined });
+    const [loading, setLoading] = useState(true);
+    const { logout } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        ApiClient.get('/users/user').then((data: any) => {
-            setUser({
-                firstName: data.firstName || (data.name ? data.name.split(' ')[0] : 'User'),
-                avatar: data.avatar || undefined,
+        // Fetch user profile data directly (same as welcome page)
+        console.log('Header: Fetching user profile...');
+        ApiClient.getUserProfile()
+            .then((data: any) => {
+                console.log('Header: User profile data received:', data);
+                setUser({
+                    firstName: data.firstName || (data.name ? data.name.split(' ')[0] : 'User'),
+                    avatar: data.avatar || undefined,
+                });
+            })
+            .catch((error) => {
+                console.error('Header: Failed to fetch user profile:', error);
+                // Fallback to email from token if available
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    try {
+                        const decodedToken: any = JSON.parse(atob(token.split('.')[1]));
+                        console.log('Header: Decoded token:', decodedToken);
+                        setUser({
+                            firstName: decodedToken.firstName || (decodedToken.name ? decodedToken.name.split(' ')[0] : 'User'),
+                            avatar: undefined,
+                        });
+                    } catch (e) {
+                        console.error('Header: Failed to decode token:', e);
+                        setUser({ firstName: "User", avatar: undefined });
+                    }
+                } else {
+                    setUser({ firstName: "User", avatar: undefined });
+                }
+            })
+            .finally(() => {
+                setLoading(false);
             });
-        }).catch(() => {
-            setUser({ firstName: "User", avatar: undefined });
-        });
     }, []);
 
     const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
     };
+
     const handleMenuClose = () => {
         setAnchorEl(null);
     };
+
     const handleLogout = () => {
-        // Remove token from localStorage
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('token');
-        }
-        // Optionally clear cookies/session here
         handleMenuClose();
-        // Redirect to login page
-        router.push('/login');
+        logout();
     };
+
     // Helper to get first initial from first name
     const getInitial = (firstName: string) => {
         return firstName ? firstName[0].toUpperCase() : '';
     };
+
+    // Get user display name from profile
+    const getUserDisplayName = () => {
+        if (user.firstName && user.firstName !== "User") {
+            return user.firstName;
+        }
+        return 'User';
+    };
+
     return (
         <AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: "#f0f0f0" }}>
             <Toolbar sx={{ justifyContent: "space-between", minHeight: 80 }}>
@@ -105,13 +139,13 @@ export default function Header() {
                     >
                         <Avatar
                             src={user.avatar}
-                            alt={user.firstName}
+                            alt={getUserDisplayName()}
                             sx={{ width: 36, height: 36, bgcolor: !user.avatar ? '#0095D5' : undefined }}
                         >
-                            {!user.avatar && getInitial(user.firstName)}
+                            {!user.avatar && getInitial(getUserDisplayName())}
                         </Avatar>
                         <Typography variant="body1" sx={{ fontWeight: 500, color: "#222", ml: 1 }}>
-                            {user.firstName}
+                            {getUserDisplayName()}
                         </Typography>
                         <ArrowDropDownIcon sx={{ color: "#888" }} />
                     </Box>

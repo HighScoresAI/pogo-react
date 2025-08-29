@@ -8,6 +8,7 @@ import { LoginRequest, LoginResponse, SignupRequest, SignupResponse } from '../t
 interface AuthContextType {
   isLoggedIn: boolean;
   userId: string | null;
+  userProfile: any | null;
   login: (data: LoginRequest) => Promise<void>;
   signup: (data: SignupRequest) => Promise<void>;
   logout: () => void;
@@ -15,6 +16,7 @@ interface AuthContextType {
   getUserId: () => string | null;
   getUserIdFromToken: (token: string) => string | null;
   verifyToken: () => Promise<boolean>;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,13 +24,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const router = useRouter();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
   const getToken = (): string | null => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('access_token');
+  };
+
+  const hasProfileLoaded = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('profile_loaded') === 'true';
+  };
+
+  const setProfileLoaded = (loaded: boolean): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('profile_loaded', loaded.toString());
   };
 
   const getUserId = (): string | null => {
@@ -53,13 +67,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Try to get user profile to verify token is valid
       const response = await ApiClient.getUserProfile();
       console.log('AuthContext: Token verification successful:', response);
+      setUserProfile(response);
+
+      // Store profile in localStorage for restoration on refresh
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user_profile', JSON.stringify(response));
+      }
+
       return true;
     } catch (error) {
       console.error('AuthContext: Token verification failed:', error);
       // Token is invalid, clear it
       localStorage.removeItem('access_token');
+      localStorage.removeItem('user_profile');
       setIsLoggedIn(false);
       setUserId(null);
+      setUserProfile(null);
       return false;
     }
   };
@@ -74,11 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const decodedToken: any = JSON.parse(atob(payload));
       console.log('AuthContext: Decoded token payload:', decodedToken);
       console.log('AuthContext: Looking for userId in:', Object.keys(decodedToken));
-      
+
       // Try different possible fields for userId
       const userId = decodedToken?.sub || decodedToken?.userId || decodedToken?.user_id || decodedToken?.id || null;
       console.log('AuthContext: Extracted userId:', userId);
-      
+
       return userId;
     } catch (error) {
       console.error('Error decoding token:', error);
@@ -99,6 +122,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('AuthContext: Extracted userId from token:', userId);
         setIsLoggedIn(true);
         setUserId(userId);
+
+        // Load user profile after successful login
+        try {
+          const userProfileResponse = await ApiClient.getUserProfile();
+          setUserProfile(userProfileResponse);
+          setProfileLoaded(true);
+
+          // Store profile in localStorage for restoration on refresh
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('user_profile', JSON.stringify(userProfileResponse));
+          }
+        } catch (profileError) {
+          console.error('AuthContext: Failed to load user profile:', profileError);
+        }
+
         router.push('/welcome');
       } else {
         console.error('AuthContext: No access token in response');
@@ -123,6 +161,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userId = getUserIdFromToken(response.access_token);
         setIsLoggedIn(true);
         setUserId(userId);
+
+        // Load user profile after successful signup
+        try {
+          const userProfileResponse = await ApiClient.getUserProfile();
+          setUserProfile(userProfileResponse);
+          setProfileLoaded(true);
+
+          // Store profile in localStorage for restoration on refresh
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('user_profile', JSON.stringify(userProfileResponse));
+          }
+        } catch (profileError) {
+          console.error('AuthContext: Failed to load user profile:', profileError);
+        }
+
         router.push('/welcome');
       } else {
         // Fallback to login page if no token
@@ -136,9 +189,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = (): void => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('profile_loaded');
+    localStorage.removeItem('user_profile');
     setIsLoggedIn(false);
     setUserId(null);
+    setUserProfile(null);
     router.push('/landing');
+  };
+
+  const refreshUserProfile = async (): Promise<void> => {
+    try {
+      const response = await ApiClient.getUserProfile();
+      console.log('AuthContext: Refreshing user profile successful:', response);
+      setUserProfile(response);
+    } catch (error) {
+      console.error('AuthContext: Refreshing user profile failed:', error);
+      // Optionally, clear token if profile refresh fails
+      localStorage.removeItem('access_token');
+      setIsLoggedIn(false);
+      setUserId(null);
+      setUserProfile(null);
+    }
   };
 
   useEffect(() => {
@@ -147,23 +218,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('AuthContext: useEffect triggered, token:', !!token);
 
     if (token) {
-      // Verify token is valid
-      verifyToken().then(isValid => {
-        if (isValid) {
-      const userId = getUserIdFromToken(token);
-          console.log('AuthContext: Token verified, extracted userId:', userId);
-      setIsLoggedIn(true);
-      setUserId(userId);
+      // Only verify token if we haven't already loaded the user profile
+      if (!hasProfileLoaded()) {
+        verifyToken().then(isValid => {
+          if (isValid) {
+            const userId = getUserIdFromToken(token);
+            console.log('AuthContext: Token verified, extracted userId:', userId);
+            setIsLoggedIn(true);
+            setUserId(userId);
+            setProfileLoaded(true);
+            // User profile is already set in verifyToken()
+          } else {
+            console.log('AuthContext: Token invalid, clearing auth state');
+            setIsLoggedIn(false);
+            setUserId(null);
+            setUserProfile(null);
+            setProfileLoaded(false);
+          }
+          setIsInitializing(false);
+        });
+      } else {
+        // We already have the profile flag, try to restore from localStorage or fetch again
+        const userId = getUserIdFromToken(token);
+        setIsLoggedIn(true);
+        setUserId(userId);
+
+        // Try to restore profile from localStorage or fetch it again
+        const storedProfile = localStorage.getItem('user_profile');
+        if (storedProfile) {
+          try {
+            const profile = JSON.parse(storedProfile);
+            setUserProfile(profile);
+          } catch (e) {
+            // If stored profile is invalid, fetch it again
+            refreshUserProfile();
+          }
         } else {
-          console.log('AuthContext: Token invalid, clearing auth state');
-          setIsLoggedIn(false);
-          setUserId(null);
+          // No stored profile, fetch it again
+          refreshUserProfile();
         }
-      });
+
+        setIsInitializing(false);
+      }
     } else {
       console.log('AuthContext: No token found, user not logged in');
       setIsLoggedIn(false);
       setUserId(null);
+      setUserProfile(null);
+      setProfileLoaded(false);
+      setIsInitializing(false);
     }
 
     // Handle Google OAuth JWT token in URL
@@ -182,11 +285,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/welcome');
       }
     }
-  }, []);
+  }, []); // Remove userProfile dependency to prevent infinite loop
 
   const value: AuthContextType = {
     isLoggedIn,
     userId,
+    userProfile,
     login,
     signup,
     logout,
@@ -194,10 +298,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getUserId,
     getUserIdFromToken,
     verifyToken,
+    refreshUserProfile,
   };
 
   // Prevent hydration mismatch by ensuring consistent initial state
-  if (!mounted) {
+  if (!mounted || isInitializing) {
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
   }
 

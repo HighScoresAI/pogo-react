@@ -46,33 +46,56 @@ export default function DashboardPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
-  const { getUserId } = useAuth();
+  const { logout } = useAuth(); // Only use logout, don't wait for auth context
 
   useEffect(() => {
-    const userId = getUserId();
-    if (!userId) {
-      console.error('No user ID found');
+    // Get userId from token directly (same as welcome page)
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      router.push('/login');
       return;
     }
 
-    ApiClient.get<Project[]>(`/users/${userId}/projects`).then((data) => {
-      // Sort by updatedAt (most recent first)
-      const sorted = [...(data || [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      setProjects(sorted);
-      setRecentWorkspace(sorted[0] || null);
-      setOtherWorkspaces(sorted.slice(1, 3));
-      // Group remaining projects into rows of 2
-      const more = [];
-      for (let i = 3; i < sorted.length; i += 2) {
-        more.push(sorted.slice(i, i + 2));
+    try {
+      const decodedToken: any = JSON.parse(atob(token.split('.')[1]));
+      const userId = decodedToken.sub;
+
+      if (!userId) {
+        router.push('/login');
+        return;
       }
-      setMoreWorkspaces(more);
-    }).catch((error) => {
-      console.error('Error fetching projects:', error);
-    });
-  }, [getUserId]);
+
+      // Fetch projects directly
+      const fetchProjects = async () => {
+        try {
+          const data = await ApiClient.get<Project[]>(`/users/${userId}/projects`);
+          // Sort by updatedAt (most recent first)
+          const sorted = [...(data || [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+          setProjects(sorted);
+          setRecentWorkspace(sorted[0] || null);
+          setOtherWorkspaces(sorted.slice(1, 3));
+          // Group remaining projects into rows of 2
+          const more = [];
+          for (let i = 3; i < sorted.length; i += 2) {
+            more.push(sorted.slice(i, i + 2));
+          }
+          setMoreWorkspaces(more);
+        } catch (error) {
+          console.error('Error fetching projects:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchProjects();
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      router.push('/login');
+    }
+  }, [router]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -89,6 +112,7 @@ export default function DashboardPage() {
         ]);
         return;
       }
+
       try {
         // Get basic stats
         const sessions = await ApiClient.get<{ artifacts?: Array<{ captureType: string }> }[]>(`/projects/${recentWorkspace.projectId}/sessions`);
@@ -132,8 +156,23 @@ export default function DashboardPage() {
         ]);
       }
     }
-    fetchStats();
-  }, [recentWorkspace]);
+
+    // Always fetch stats when recentWorkspace changes, regardless of current stats values
+    if (recentWorkspace?.projectId) {
+      fetchStats();
+    }
+  }, [recentWorkspace?.projectId]); // Remove stats dependency to always update when workspace changes
+
+  // Show loading state only briefly while fetching data
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <Typography>Loading...</Typography>
+        </Box>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -537,7 +576,13 @@ export default function DashboardPage() {
             onClick={async () => {
               setCreatingProject(true);
               try {
-                const userId = getUserId();
+                const token = localStorage.getItem('access_token');
+                if (!token) {
+                  throw new Error('No token found');
+                }
+                const decodedToken: any = JSON.parse(atob(token.split('.')[1]));
+                const userId = decodedToken.sub;
+
                 if (!userId) {
                   throw new Error('No user ID found');
                 }
@@ -545,17 +590,16 @@ export default function DashboardPage() {
                 setCreateDialogOpen(false);
                 setNewProjectName('');
                 // Refresh projects list to include the new one
-                ApiClient.get<Project[]>(`/users/${userId}/projects`).then((data) => {
-                  const sorted = [...(data || [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-                  setProjects(sorted);
-                  setRecentWorkspace(sorted[0] || null);
-                  setOtherWorkspaces(sorted.slice(1, 3));
-                  const more = [];
-                  for (let i = 3; i < sorted.length; i += 2) {
-                    more.push(sorted.slice(i, i + 2));
-                  }
-                  setMoreWorkspaces(more);
-                });
+                const data = await ApiClient.get<Project[]>(`/users/${userId}/projects`);
+                const sorted = [...(data || [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+                setProjects(sorted);
+                setRecentWorkspace(sorted[0] || null);
+                setOtherWorkspaces(sorted.slice(1, 3));
+                const more = [];
+                for (let i = 3; i < sorted.length; i += 2) {
+                  more.push(sorted.slice(i, i + 2));
+                }
+                setMoreWorkspaces(more);
               } catch (error) {
                 console.error('Error creating project:', error);
                 alert('Failed to create workspace. Please try again.');

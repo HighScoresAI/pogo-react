@@ -60,26 +60,24 @@ export default function ChatbotWidget({
     const [contextLoaded, setContextLoaded] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Initialize welcome message when context is available
+    // Initialize welcome message based on context
     useEffect(() => {
-        if (messages.length === 0) {
-            let welcomeMessage = 'Hello! I\'m your AI assistant. How can I help you today?';
+        let welcomeMessage = 'Hello! I\'m your AI assistant. How can I help you today?';
 
-            if (isSessionPage && sessionName) {
-                welcomeMessage = `Hello! I'm your AI assistant for session "${sessionName}". I can help you with questions about this session, its artifacts, and processing status. How can I help you today?`;
-            } else if (isProjectPage && projectName) {
-                welcomeMessage = `Hello! I'm your AI assistant for ${projectName}. I can help you with project overview, session management, artifact processing status, and cross-session analysis. How can I help you today?`;
-            }
-
-            console.log('ChatbotWidget: Initializing welcome message:', welcomeMessage);
-            setMessages([{
-                id: '1',
-                message: welcomeMessage,
-                sender: 'bot',
-                timestamp: new Date(),
-                status: 'sent'
-            }]);
+        if (isSessionPage && sessionName) {
+            welcomeMessage = `Hello! I'm your AI assistant for session ${sessionName}. I can help you with session-specific tasks, artifact processing, and analysis. How can I help you today?`;
+        } else if (isProjectPage && projectName) {
+            welcomeMessage = `Hello! I'm your AI assistant for ${projectName}. I can help you with project overview, session management, artifact processing status, and cross-session analysis. How can I help you today?`;
         }
+
+        console.log('ChatbotWidget: Initializing welcome message:', welcomeMessage);
+        setMessages([{
+            id: '1',
+            message: welcomeMessage,
+            sender: 'bot',
+            timestamp: new Date(),
+            status: 'sent'
+        }]);
     }, [isProjectPage, isSessionPage, projectName, sessionName]);
 
     // Auto-scroll to bottom when new messages arrive
@@ -97,7 +95,15 @@ export default function ChatbotWidget({
         }
     }, [messages, isOpen]);
 
-    // Debug: Log userId when component mounts
+    // Debug: Log when component first mounts and when auth state changes
+    useEffect(() => {
+        console.log('ChatbotWidget: Component mounted');
+        console.log('ChatbotWidget: Initial userId:', userId);
+        console.log('ChatbotWidget: Initial isLoggedIn:', isLoggedIn);
+        console.log('ChatbotWidget: Auth context available:', !!useAuth);
+    }, []);
+
+    // Debug: Log auth state changes
     useEffect(() => {
         console.log('ChatbotWidget: Current userId:', userId);
         console.log('ChatbotWidget: User logged in:', isLoggedIn);
@@ -111,15 +117,7 @@ export default function ChatbotWidget({
         }
     }, [userId, isLoggedIn, getToken]);
 
-    // Debug: Log when component first mounts
-    useEffect(() => {
-        console.log('ChatbotWidget: Component mounted');
-        console.log('ChatbotWidget: Initial userId:', userId);
-        console.log('ChatbotWidget: Initial isLoggedIn:', isLoggedIn);
-        console.log('ChatbotWidget: Auth context available:', !!useAuth);
-    }, []);
-
-    // Debug: Log context changes
+    // Debug: Log context changes and set context loaded state
     useEffect(() => {
         console.log('ChatbotWidget: Context changed:', {
             projectId,
